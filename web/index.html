@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Movie Search (OMDB)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      background: #f4f6f9;
+      color: #333;
+    }
+    header {
+      background: #2d3748;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+    .search-box {
+      max-width: 600px;
+      margin: 2rem auto;
+      display: flex;
+      gap: .5rem;
+    }
+    .search-box input {
+      flex: 1;
+      padding: .6rem 1rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 1rem;
+    }
+    .search-box button {
+      padding: .6rem 1rem;
+      border: none;
+      background: #3182ce;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .results {
+      display: grid;
+      grid-template-columns: repeat(auto-fill,minmax(200px,1fr));
+      gap: 1rem;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+    .card {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .card img {
+      width: 100%;
+      height: 300px;
+      object-fit: cover;
+    }
+    .card-body {
+      padding: .8rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .card-title {
+      font-weight: bold;
+      margin-bottom: .4rem;
+    }
+    .btn {
+      display: inline-block;
+      padding: .4rem .8rem;
+      border-radius: 6px;
+      background: #3182ce;
+      color: white;
+      text-align: center;
+      text-decoration: none;
+      margin-top: .5rem;
+      cursor: pointer;
+    }
+    /* Модалка */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-content {
+      background: white;
+      padding: 1rem;
+      max-width: 500px;
+      border-radius: 8px;
+      box-shadow: 0 5px 20px rgba(0,0,0,.2);
+    }
+    .modal-close {
+      float: right;
+      cursor: pointer;
+      font-weight: bold;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <header><h1>Movie Search (OMDB)</h1></header>
+
+  <div class="search-box">
+    <input id="query" type="text" placeholder="Введите название фильма...">
+    <button id="searchBtn">Поиск</button>
+  </div>
+
+  <div id="results" class="results"></div>
+
+  <!-- Модальное окно -->
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <span id="modalClose" class="modal-close">✖</span>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <script>
+    const resultsEl = document.getElementById('results');
+    const queryEl = document.getElementById('query');
+    const modal = document.getElementById('modal');
+    const modalBody = document.getElementById('modalBody');
+    const modalClose = document.getElementById('modalClose');
+
+    async function searchMovies() {
+      const q = queryEl.value.trim();
+      if (!q) return;
+      resultsEl.innerHTML = '<p>Загрузка...</p>';
+      
+      try {
+        // Прямой запрос к OMDB API
+        const url = `http://www.omdbapi.com/?apikey=a91fcb6&s=${encodeURIComponent(q)}&type=movie`;
+        console.log('Request URL:', url);
+        
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Ошибка HTTP: ' + res.status);
+        
+        const data = await res.json();
+        console.log('OMDB Response:', data);
+        
+        if (data.Response === "False") {
+          resultsEl.innerHTML = `<p>Ошибка: ${data.Error}</p>`;
+          return;
+        }
+        
+        renderResults(data.Search || []);
+      } catch (err) {
+        console.error('Search error:', err);
+        resultsEl.innerHTML = '<p>Ошибка при запросе к OMDB</p>';
+      }
+    }
+
+    function renderResults(movies) {
+      if (!movies || !movies.length) {
+        resultsEl.innerHTML = '<p>Ничего не найдено</p>';
+        return;
+      }
+      
+      resultsEl.innerHTML = movies.map(movie => `
+        <div class="card">
+          ${movie.Poster && movie.Poster !== 'N/A' ? 
+            `<img src="${movie.Poster}" alt="${movie.Title}">` : 
+            '<div style="height:300px; background:#eee; display:flex; align-items:center; justify-content:center;">Нет изображения</div>'
+          }
+          <div class="card-body">
+            <div>
+              <div class="card-title">${movie.Title}</div>
+              <div>${movie.Year || '—'}</div>
+            </div>
+            <button class="btn" onclick="showDetails('${movie.imdbID}')">Подробнее</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function showDetails(imdbID) {
+      try {
+        // Прямой запрос к OMDB для деталей
+        const url = `http://www.omdbapi.com/?apikey=a91fcb6&i=${imdbID}&plot=short`;
+        console.log('Details URL:', url);
+        
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Ошибка HTTP: ' + res.status);
+        
+        const movie = await res.json();
+        console.log('Movie details:', movie);
+        
+        if (movie.Response === "False") {
+          alert('Ошибка: ' + movie.Error);
+          return;
+        }
+        
+        modalBody.innerHTML = `
+          <h2>${movie.Title}</h2>
+          <p><b>Год:</b> ${movie.Year || '—'}</p>
+          <p><b>Рейтинг:</b> ${movie.imdbRating || '—'}</p>
+          <p><b>Жанр:</b> ${movie.Genre || '—'}</p>
+          <p><b>Режиссер:</b> ${movie.Director || '—'}</p>
+          <p><b>Актеры:</b> ${movie.Actors || '—'}</p>
+          <p><b>Описание:</b> ${movie.Plot || 'Нет описания'}</p>
+        `;
+        modal.style.display = 'flex';
+      } catch (err) {
+        console.error('Details error:', err);
+        alert('Не удалось загрузить детали фильма');
+      }
+    }
+
+    modalClose.onclick = () => modal.style.display = 'none';
+    modal.onclick = e => { if (e.target === modal) modal.style.display = 'none'; };
+
+    document.getElementById('searchBtn').onclick = searchMovies;
+    queryEl.addEventListener('keypress', e => { if (e.key === 'Enter') searchMovies(); });
+  </script>
+</body>
+</html>
