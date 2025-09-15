@@ -137,19 +137,10 @@
       
       try {
         const url = `/api/movies/search?title=${encodeURIComponent(q)}`;
-        console.log('Request URL:', url);
-        
         const res = await fetch(url);
         if (!res.ok) throw new Error('Ошибка HTTP: ' + res.status);
         
         const data = await res.json();
-        console.log('Backend Response:', data);
-        
-        if (data.Response === "False") {
-          resultsEl.innerHTML = `<p>Ошибка: ${data.Error}</p>`;
-          return;
-        }
-        
         renderResults(data.Search || []);
       } catch (err) {
         console.error('Search error:', err);
@@ -165,14 +156,14 @@
       
       resultsEl.innerHTML = movies.map(movie => `
         <div class="card">
-          ${movie.Poster && movie.Poster !== 'N/A' ? 
-            `<img src="${movie.Poster}" alt="${movie.Title}">` : 
+          ${movie.poster && movie.poster !== 'N/A' ? 
+            `<img src="${movie.poster}" alt="${movie.title}">` : 
             '<div style="height:300px; background:#eee; display:flex; align-items:center; justify-content:center;">Нет изображения</div>'
           }
           <div class="card-body">
             <div>
-              <div class="card-title">${movie.Title}</div>
-              <div>${movie.Year || '—'}</div>
+              <div class="card-title">${movie.title}</div>
+              <div>${movie.year || '—'}</div>
             </div>
             <button class="btn" onclick="showDetails('${movie.omdb_id}')">Подробнее</button>
           </div>
@@ -180,32 +171,18 @@
       `).join('');
     }
 
-    async function showDetails(imdbID) {
+    async function showDetails(movieId) {
       try {
-     
         const url = `/api/movies/${movieId}`;
-        console.log('Details URL:', url);
-        
         const res = await fetch(url);
         if (!res.ok) throw new Error('Ошибка HTTP: ' + res.status);
         
         const movie = await res.json();
-        console.log('Movie details:', movie);
-        
-        if (movie.Response === "False") {
-          alert('Ошибка: ' + movie.Error);
-          return;
-        }
-        
         modalBody.innerHTML = `
-          <h2>${movie.Title}</h2>
-          <p><b>Год:</b> ${movie.Year || '—'}</p>
-          <p><b>Рейтинг:</b> ${movie.imdbRating || '—'}</p>
-          <p><b>Жанр:</b> ${movie.Genre || '—'}</p>
-          <p><b>Режиссер:</b> ${movie.Director || '—'}</p>
-          <p><b>Актеры:</b> ${movie.Actors || '—'}</p>
-          <p><b>Описание:</b> ${movie.Plot || 'Нет описания'}</p>
-          ${movie.poster && movie.poster !== 'N/A' ? `<img src="${movie.poster}" style="max-width:100%">` : ''}
+          <h2>${movie.title}</h2>
+          <p><b>Год:</b> ${movie.year || '—'}</p>
+          <p><b>Описание:</b> ${movie.plot || 'Нет описания'}</p>
+          <p><img src="${movie.poster}" alt="${movie.title}" style="width:100%"></p>
         `;
         modal.style.display = 'flex';
       } catch (err) {
