@@ -183,7 +183,7 @@
     async function showDetails(imdbID) {
       try {
      
-        const url = `/api/movies/${movieId}`;
+        const url = `/api/movies/${encodeURIComponent(imdbID)}`;
         console.log('Details URL:', url);
         
         const res = await fetch(url);
@@ -205,6 +205,7 @@
           <p><b>Режиссер:</b> ${movie.Director || '—'}</p>
           <p><b>Актеры:</b> ${movie.Actors || '—'}</p>
           <p><b>Описание:</b> ${movie.Plot || 'Нет описания'}</p>
+          ${movie.poster && movie.poster !== 'N/A' ? `<img src="${movie.poster}" style="max-width:100%">` : ''}
         `;
         modal.style.display = 'flex';
       } catch (err) {
