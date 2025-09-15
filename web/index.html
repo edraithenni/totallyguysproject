@@ -136,15 +136,14 @@
       resultsEl.innerHTML = '<p>Загрузка...</p>';
       
       try {
-        // Прямой запрос к OMDB API
-        const url = `http://www.omdbapi.com/?apikey=a91fcb6&s=${encodeURIComponent(q)}&type=movie`;
+        const url = `/api/movies/search?title=${encodeURIComponent(q)}`;
         console.log('Request URL:', url);
         
         const res = await fetch(url);
         if (!res.ok) throw new Error('Ошибка HTTP: ' + res.status);
         
         const data = await res.json();
-        console.log('OMDB Response:', data);
+        console.log('Backend Response:', data);
         
         if (data.Response === "False") {
           resultsEl.innerHTML = `<p>Ошибка: ${data.Error}</p>`;
@@ -154,7 +153,7 @@
         renderResults(data.Search || []);
       } catch (err) {
         console.error('Search error:', err);
-        resultsEl.innerHTML = '<p>Ошибка при запросе к OMDB</p>';
+        resultsEl.innerHTML = '<p>Ошибка при запросе к backend</p>';
       }
     }
 
@@ -183,8 +182,8 @@
 
     async function showDetails(imdbID) {
       try {
-        // Прямой запрос к OMDB для деталей
-        const url = `http://www.omdbapi.com/?apikey=a91fcb6&i=${imdbID}&plot=short`;
+     
+        const url = `/api/movies/${movieId}`;
         console.log('Details URL:', url);
         
         const res = await fetch(url);
