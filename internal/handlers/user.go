@@ -1,0 +1,268 @@
+package handlers
+
+import (
+	"net/http"
+	"totallyguysproject/internal/models"
+    "fmt"
+	"time"
+	"totallyguysproject/internal/utils"
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+)
+
+// GET /api/users/me
+func GetCurrentUser(c *gin.Context, db *gorm.DB) {
+	uid, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+		return
+	}
+
+	var user models.User
+    if err := db.Preload("Playlists").Preload("Reviews").First(&user, uid.(uint)).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+        return
+    }
+
+	// user playlists for frontend
+	collections := []map[string]interface{}{}
+	for _, p := range user.Playlists {
+		collections = append(collections, map[string]interface{}{
+			"id":    p.ID,
+			"name":  p.Name,
+			"cover": "/static/collection-placeholder.png", 
+		})
+	}
+    // user friends for frontend
+	friends := []uint{}
+    for _, f := range user.Friends {
+	    friends = append(friends, f.ID)
+    }
+
+    // user reviews for frontend
+	reviews := []map[string]interface{}{}
+    for _, r := range user.Reviews {
+        reviews = append(reviews, map[string]interface{}{
+            "id":      r.ID,
+            "movieId": r.MovieID,
+            "content": r.Content,
+            "rating":  r.Rating,
+        })
+    }
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":          user.ID,
+		"name":        user.Name,
+		"role":        user.Role, //nado li ?
+		"email":       user.Email,
+		"avatar":      user.Avatar,
+		"description": user.Description,
+		"collections": collections,
+		"friends":     friends,
+		"reviews":     reviews,
+	})
+}
+
+// PUT /api/users/me
+func UpdateCurrentUser(c *gin.Context, db *gorm.DB) {
+	uid, _ := c.Get("userID")
+	var req struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	var user models.User
+	if err := db.First(&user, uid.(uint)).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	if req.Name != "" {
+		user.Name = req.Name
+	}
+	if req.Description != "" {
+		user.Description = req.Description
+	}
+
+	db.Save(&user)
+	c.JSON(http.StatusOK, gin.H{"message": "updated"})
+}
+
+// GET /api/users/:id
+func GetProfile(c *gin.Context, db *gorm.DB) {
+    id := c.Param("id")
+
+    uid, exists := c.Get("userID")
+    if exists && id == fmt.Sprintf("%v", uid) {
+        // redirecting to /me
+        GetCurrentUser(c, db)
+        return
+    }
+
+    var user models.User
+    if err := db.Preload("Playlists").Preload("Reviews").Preload("Friends").
+        First(&user, id).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+        return
+    }
+
+    playlists := []map[string]interface{}{}
+    for _, p := range user.Playlists {
+        playlists = append(playlists, map[string]interface{}{
+            "id":    p.ID,
+            "name":  p.Name,
+            "cover": p.Cover,
+        })
+    }
+
+    reviews := []map[string]interface{}{}
+    for _, r := range user.Reviews {
+        reviews = append(reviews, map[string]interface{}{
+            "id":      r.ID,
+            "movieId": r.MovieID,
+            "content": r.Content,
+            "rating":  r.Rating,
+        })
+    }
+
+    friends := []uint{}
+    for _, f := range user.Friends {
+        friends = append(friends, f.ID)
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "id":          user.ID,
+        "name":        user.Name,
+        "avatar":      user.Avatar,
+        "description": user.Description,
+        "playlists":   playlists,
+        "friends":     friends,
+        "reviews":     reviews,
+    })
+}
+
+// GET /api/users/search
+func SearchUsers(c *gin.Context, db *gorm.DB) {
+    query := c.Query("query")
+    if query == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "query required"})
+        return
+    }
+
+    var users []models.User
+    if err := db.Where("name ILIKE ? OR email ILIKE ?", "%"+query+"%", "%"+query+"%").
+        Find(&users).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to search users"})
+        return
+    }
+
+    safeUsers := []gin.H{}
+    for _, u := range users {
+        safeUsers = append(safeUsers, gin.H{
+            "id":     u.ID,
+            "name":   u.Name,
+            "email":  u.Email,
+            "avatar": u.Avatar,
+        })
+    }
+
+    c.JSON(http.StatusOK, gin.H{"users": safeUsers})
+}
+
+//not ready yet
+func UploadAvatar(c *gin.Context, db *gorm.DB) {
+    userID, ok := c.Get("userID")
+    if !ok {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+        return
+    }
+
+    file, err := c.FormFile("avatar")
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "file not provided"})
+        return
+    }
+
+    // gen unique filename (userID + timestamp)
+    filename := fmt.Sprintf("user_%v_%d_%s", userID, time.Now().Unix(), file.Filename)
+    savePath := "./uploads/" + filename
+
+    // save to uploads
+    if err := c.SaveUploadedFile(file, savePath); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
+        return
+    }
+
+    // for frontend url
+    avatarURL := "/uploads/" + filename
+
+    if err := db.Model(&models.User{}).Where("id = ?", userID).Update("avatar", avatarURL).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update avatar"})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{"avatar": avatarURL})
+}
+
+// Admin create user(alternative for register if not done yet)
+func CreateUser(c *gin.Context, db *gorm.DB) {
+	var req struct {
+		Name     string `json:"name"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
+		Role     string `json:"role"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// exists check
+	var exists int64
+	db.Model(&models.User{}).Where("email = ?", req.Email).Count(&exists)
+	if exists > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user already exists"})
+		return
+	}
+
+	hashed, _ := utils.HashPassword(req.Password)
+
+	user := models.User{
+		Name:        req.Name,
+		Email:       req.Email,
+		Password:    hashed,
+		Role:        req.Role,
+		Verified:    false,
+		Avatar:      "",
+		Description: "",
+	}
+
+	if err := db.Create(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
+		return
+	}
+	
+	defaultPlaylists := []struct {
+		Name  string
+		Cover string
+	}{
+		{"watch-later", "/static/playlists/watch-later.png"},
+		{"watched", "/static/playlists/watched.png"},
+		{"liked", "/static/playlists/liked.png"},
+	}
+
+	for _, p := range defaultPlaylists {
+		db.Create(&models.Playlist{
+			Name:    p.Name,
+			OwnerID: user.ID,
+			Cover:   p.Cover,
+		})
+	}
+
+	c.JSON(http.StatusCreated, user)
+}

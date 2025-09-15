@@ -14,7 +14,7 @@ import (
 func main() {
 	db := database.InitDB()
     // db.Exec("DELETE FROM Users") // if we need to clear users table
-
+    
     srv := server.NewServer(db)
     srv.Router.Run(":8080")
 }

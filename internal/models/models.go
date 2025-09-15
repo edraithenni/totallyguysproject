@@ -13,17 +13,22 @@ type User struct {
 	Avatar           string     `json:"avatar"`
 	Description      string     `json:"description"`
 	Playlists        []Playlist `gorm:"foreignKey:OwnerID"` // FK
+	Friends          []*User    `gorm:"many2many:user_friends;joinForeignKey:UserID;joinReferences:FriendID"`
+	Reviews          []Review   `gorm:"foreignKey:UserID"`
 }
 type Movie struct {
-    gorm.Model
-    OMDBID string `json:"omdb_id"` 
+	gorm.Model
+    OMDBID   string  `json:"omdb_id" gorm:"uniqueIndex"` // imdb id
 	//TMDbID   uint   `json:"tmdb_id"`
-    Title  string `json:"title"`
-    Year   string `json:"year"`
-	Plot   string `json:"plot"`   
-    Poster string `json:"poster"`
-	//Genre  string `json:"genre"` // ? l8r
-	AvgRating float64 `json:"avg_rating"`
+    Title    string  `json:"title"`
+    Year     string  `json:"year"`
+    Plot     string  `json:"plot"`
+    Poster   string  `json:"poster"`
+    Genre    string  `json:"genre"`
+    Director string  `json:"director"`
+    Actors   string  `json:"actors"`
+    Rating   string  `json:"rating"`    // imdbRating string
+    AvgRating float64 `json:"avg_rating"`
 }
 
 type Playlist struct {
