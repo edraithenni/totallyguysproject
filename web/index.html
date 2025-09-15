@@ -174,7 +174,7 @@
               <div class="card-title">${movie.Title}</div>
               <div>${movie.Year || '—'}</div>
             </div>
-            <button class="btn" onclick="showDetails('${movie.imdbID}')">Подробнее</button>
+            <button class="btn" onclick="showDetails('${movie.omdb_id}')">Подробнее</button>
           </div>
         </div>
       `).join('');
@@ -183,7 +183,7 @@
     async function showDetails(imdbID) {
       try {
      
-        const url = `/api/movies/${encodeURIComponent(imdbID)}`;
+        const url = `/api/movies/${movieId}`;
         console.log('Details URL:', url);
         
         const res = await fetch(url);
