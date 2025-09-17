@@ -26,7 +26,7 @@ func SearchAndSaveMovie(c *gin.Context, db *gorm.DB) {
         c.JSON(http.StatusBadRequest, gin.H{"error": "title required"})
         return
     }
-
+//artem update: find multiple results for query
     // db cached
     /*var movie models.Movie
     if err := db.Where("title LIKE ?", "%"+title+"%").First(&movie).Error; err == nil {
@@ -81,7 +81,7 @@ func SearchAndSaveMovie(c *gin.Context, db *gorm.DB) {
             Year:   fmt.Sprintf("%v", mMap["Year"]),
             OMDBID: fmt.Sprintf("%v", mMap["imdbID"]),
             Poster: fmt.Sprintf("%v", mMap["Poster"]),
-            // Plot/Genre/Director/Actors/Rating пока пустые — потом подтянем в GetMovie
+            // Plot/Genre/Director/Actors/Rating empty on preview, pull from  after clicking
         }
 
         db.FirstOrCreate(&newMovie, models.Movie{OMDBID: newMovie.OMDBID})
@@ -92,7 +92,7 @@ func SearchAndSaveMovie(c *gin.Context, db *gorm.DB) {
 }
 
 
-// GET /api/movies/:id  //:id может быть numeric DB id или imdbID (tt...)
+// GET /api/movies/:id  db/imdb id
 
 func GetMovie(c *gin.Context, db *gorm.DB) {
     id := c.Param("id")
@@ -113,7 +113,7 @@ func GetMovie(c *gin.Context, db *gorm.DB) {
         }
     }
 
-    // если не найден в БД — пробуем сразу подтянуть из OMDb и сохранить
+    // not in db -> load from omdb
     if !found {
         omdbURL := fmt.Sprintf("http://www.omdbapi.com/?apikey=%s&i=%s&plot=short", omdbAPIKey, url.QueryEscape(id))
         resp, err := http.Get(omdbURL)
@@ -154,7 +154,7 @@ func GetMovie(c *gin.Context, db *gorm.DB) {
         return
     }
 
-    // если нашли в БД, а деталей нет — подтягиваем из OMDb и обновляем
+    // in db raw version -> pull details from omdb -> save to db full version
     if movie.Plot == "" || movie.Plot == "N/A" {
         omdbURL := fmt.Sprintf("http://www.omdbapi.com/?apikey=%s&i=%s&plot=short", omdbAPIKey, url.QueryEscape(movie.OMDBID))
         resp, err := http.Get(omdbURL)
