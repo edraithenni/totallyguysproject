@@ -2,159 +2,214 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Auth Demo</title>
+  <title>Movie App</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
-    body {
-      font-family: system-ui, sans-serif;
-      background: #f4f6f9;
-      margin: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
+    body { font-family: system-ui, sans-serif; margin: 0; background: #f4f6f9; color: #333; }
+    header {
+      background: #2d3748; color: white; padding: 1rem;
+      display: flex; justify-content: space-between; align-items: center;
     }
-    .card {
-      background: white;
-      padding: 2rem;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      width: 350px;
+    header h1 { margin: 0; }
+    nav button {
+      margin-left: .5rem; padding: .4rem .8rem; border: none;
+      border-radius: 6px; cursor: pointer;
     }
-    h2 { margin-top: 0; }
-    input {
-      width: 100%;
-      padding: .6rem 1rem;
-      margin-bottom: .8rem;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      font-size: 1rem;
-    }
-    button {
-      width: 100%;
-      padding: .6rem 1rem;
-      border: none;
-      border-radius: 8px;
-      background: #3182ce;
-      color: white;
-      font-size: 1rem;
-      cursor: pointer;
-    }
-    .switch {
-      margin-top: 1rem;
-      text-align: center;
-      color: #555;
-      cursor: pointer;
-    }
-    .hidden { display: none; }
-    .msg {
-      background: #e6ffed;
-      border: 1px solid #b2f5ea;
-      padding: .5rem;
-      margin-bottom: .8rem;
-      border-radius: 6px;
-      color: #22543d;
-      font-size: .9rem;
-    }
+    nav button.primary { background: #3182ce; color: white; }
+    nav button.secondary { background: #4a5568; color: white; }
+    .search-box { max-width: 600px; margin: 2rem auto; display: flex; gap: .5rem; }
+    .search-box input { flex: 1; padding: .6rem 1rem; border-radius: 8px; border: 1px solid #ccc; font-size: 1rem; }
+    .search-box button { padding: .6rem 1rem; border: none; background: #3182ce; color: white; border-radius: 8px; cursor: pointer; }
+    .results { display: grid; grid-template-columns: repeat(auto-fill,minmax(200px,1fr)); gap: 1rem; max-width: 1200px; margin: 0 auto; padding: 1rem; }
+    .card { background: white; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); overflow: hidden; display: flex; flex-direction: column; }
+    .card img { width: 100%; height: 300px; object-fit: cover; }
+    .card-body { padding: .8rem; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+    .btn { padding: .4rem .8rem; border-radius: 6px; background: #3182ce; color: white; text-align: center; cursor: pointer; }
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: none; align-items: center; justify-content: center; z-index: 10; }
+    .modal-content { background: white; padding: 1rem; max-width: 500px; width: 90%; border-radius: 8px; box-shadow: 0 5px 20px rgba(0,0,0,.2); }
+    .modal-close { float: right; cursor: pointer; font-weight: bold; color: #666; }
+    form { display: flex; flex-direction: column; gap: .8rem; margin-top: 1rem; }
+    form input { padding: .6rem; border-radius: 6px; border: 1px solid #ccc; }
+    form button { padding: .6rem; border: none; border-radius: 6px; background: #3182ce; color: white; cursor: pointer; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <!-- Registration -->
-    <div id="registerForm">
-      <h2>Регистрация</h2>
-      <div id="regMsg" class="msg hidden"></div>
-      <input id="regEmail" type="email" placeholder="Email">
-      <input id="regPass" type="password" placeholder="Пароль">
-      <button onclick="register()">Зарегистрироваться</button>
-      <div class="switch" onclick="showForm('loginForm')">Уже есть аккаунт? Войти</div>
-    </div>
+  <header>
+    <h1>Movie App</h1>
+    <nav>
+      <button id="btnLogin" class="primary">Войти</button>
+      <button id="btnRegister" class="secondary">Регистрация</button>
+      <button id="btnProfile" class="secondary" style="display:none;">Профиль</button>
+      <button id="btnLogout" class="secondary" style="display:none;">Выйти</button>
+    </nav>
+  </header>
 
-    <!-- Verification -->
-    <div id="verifyForm" class="hidden">
-      <h2>Подтверждение</h2>
-      <div id="verMsg" class="msg hidden"></div>
-      <input id="verEmail" type="email" placeholder="Email">
-      <input id="verCode" type="text" placeholder="Код из письма">
-      <button onclick="verify()">Подтвердить</button>
-      <div class="switch" onclick="showForm('loginForm')">Перейти ко входу</div>
-    </div>
+  <div class="search-box">
+    <input id="query" type="text" placeholder="Введите название фильма...">
+    <button id="searchBtn">Поиск</button>
+  </div>
 
-    <!-- Login -->
-    <div id="loginForm" class="hidden">
-      <h2>Вход</h2>
-      <div id="logMsg" class="msg hidden"></div>
-      <input id="logEmail" type="email" placeholder="Email">
-      <input id="logPass" type="password" placeholder="Пароль">
-      <button onclick="login()">Войти</button>
-      <div class="switch" onclick="showForm('registerForm')">Нет аккаунта? Регистрация</div>
+  <div id="results" class="results"></div>
+
+  <!-- universal modal -->
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <span id="modalClose" class="modal-close">✖</span>
+      <div id="modalBody"></div>
     </div>
   </div>
 
-  <script>
-    function showForm(id) {
-      document.querySelectorAll('.card > div').forEach(el => el.classList.add('hidden'));
-      document.getElementById(id).classList.remove('hidden');
-    }
+<script>
+const modal = document.getElementById('modal');
+const modalBody = document.getElementById('modalBody');
+const modalClose = document.getElementById('modalClose');
+modalClose.onclick = () => modal.style.display = 'none';
+modal.onclick = e => { if (e.target === modal) modal.style.display = 'none'; };
 
-    function showMsg(id, text) {
-      const box = document.getElementById(id);
-      box.textContent = text;
-      box.classList.remove('hidden');
-    }
+function openModal(html) {
+  modalBody.innerHTML = html;
+  modal.style.display = 'flex';
+}
 
-    async function register() {
-      const email = document.getElementById('regEmail').value.trim();
-      const password = document.getElementById('regPass').value.trim();
-      try {
-        const res = await fetch('/api/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
-        });
-        if (!res.ok) throw new Error(await res.text());
-        showMsg('regMsg', 'Регистрация успешна! Введите код подтверждения.');
-        document.getElementById('verEmail').value = email;
-        showForm('verifyForm');
-      } catch (err) {
-        alert('Ошибка регистрации: ' + err.message);
-      }
-    }
+async function api(url, method='GET', body=null) {
+  const opts = { method, headers: {} };
+  if (body) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch(url, opts);
+  const data = await res.json().catch(()=>({}));
+  if (!res.ok) throw new Error(data.error || 'Ошибка');
+  return data;
+}
 
-    async function verify() {
-      const email = document.getElementById('verEmail').value.trim();
-      const code = document.getElementById('verCode').value.trim();
-      try {
-        const res = await fetch('/api/auth/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, code })
-        });
-        if (!res.ok) throw new Error(await res.text());
-        showMsg('verMsg', 'Email подтвержден! Теперь войдите.');
-        showForm('loginForm');
-        document.getElementById('logEmail').value = email;
-      } catch (err) {
-        alert('Ошибка подтверждения: ' + err.message);
-      }
-    }
+// --- AUTH UI ---
+document.getElementById('btnLogin').onclick = () => {
+  openModal(`
+    <h2>Вход</h2>
+    <form id="loginForm">
+      <input type="email" name="email" placeholder="Email" required>
+      <input type="password" name="password" placeholder="Пароль" required>
+      <button>Войти</button>
+    </form>
+  `);
+  document.getElementById('loginForm').onsubmit = async e => {
+    e.preventDefault();
+    const f = e.target;
+    try {
+      await api('/api/auth/login','POST',{ email:f.email.value, password:f.password.value });
+      alert('Успешный вход');
+      modal.style.display='none';
+      setAuthUI(true);
+    } catch(err){ alert(err.message); }
+  };
+};
 
-    async function login() {
-      const email = document.getElementById('logEmail').value.trim();
-      const password = document.getElementById('logPass').value.trim();
-      try {
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
-        });
-        if (!res.ok) throw new Error(await res.text());
-        const data = await res.json();
-        showMsg('logMsg', 'Вход выполнен! Токен: ' + data.token);
-      } catch (err) {
-        alert('Ошибка входа: ' + err.message);
-      }
-    }
-  </script>
+document.getElementById('btnRegister').onclick = () => {
+  openModal(`
+    <h2>Регистрация</h2>
+    <form id="registerForm">
+      <input type="text" name="name" placeholder="Имя" required>
+      <input type="email" name="email" placeholder="Email" required>
+      <input type="password" name="password" placeholder="Пароль (мин 6)" required>
+      <button>Зарегистрироваться</button>
+    </form>
+  `);
+  document.getElementById('registerForm').onsubmit = async e => {
+    e.preventDefault();
+    const f = e.target;
+    try {
+      const res = await api('/api/auth/register','POST',{
+        name:f.name.value, email:f.email.value, password:f.password.value
+      });
+      alert(res.message);
+      modal.style.display='none';
+    } catch(err){ alert(err.message); }
+  };
+};
+
+document.getElementById('btnProfile').onclick = async () => {
+  try {
+    const me = await api('/api/users/me');
+    openModal(`
+      <h2>Профиль</h2>
+      <p><b>Имя:</b> ${me.name}</p>
+      <p><b>Email:</b> ${me.email}</p>
+      <p><b>Описание:</b> ${me.description||'—'}</p>
+      <p><b>Коллекции:</b> ${me.collections.map(c=>c.name).join(', ')}</p>
+    `);
+  } catch(err){ alert('Ошибка: '+err.message); }
+};
+
+document.getElementById('btnLogout').onclick = async () => {
+  try {
+    await api('/api/auth/logout','POST');
+    alert('Вы вышли');
+    setAuthUI(false);
+  } catch(err){ alert(err.message); }
+};
+
+function setAuthUI(loggedIn) {
+  document.getElementById('btnLogin').style.display = loggedIn?'none':'inline-block';
+  document.getElementById('btnRegister').style.display = loggedIn?'none':'inline-block';
+  document.getElementById('btnProfile').style.display = loggedIn?'inline-block':'none';
+  document.getElementById('btnLogout').style.display = loggedIn?'inline-block':'none';
+}
+
+// --- MOVIE SEARCH ---
+const resultsEl = document.getElementById('results');
+const queryEl = document.getElementById('query');
+document.getElementById('searchBtn').onclick = searchMovies;
+queryEl.addEventListener('keypress', e => { if (e.key==='Enter') searchMovies(); });
+
+async function searchMovies() {
+  const q = queryEl.value.trim();
+  if (!q) return;
+  resultsEl.innerHTML = '<p>Загрузка...</p>';
+  try {
+    const data = await api(`/api/movies/search?title=${encodeURIComponent(q)}`);
+    renderResults(data.Search || []);
+  } catch(err) {
+    resultsEl.innerHTML = '<p>Ошибка поиска</p>';
+  }
+}
+
+function renderResults(movies) {
+  if (!movies.length) { resultsEl.innerHTML='<p>Ничего не найдено</p>'; return; }
+  resultsEl.innerHTML = movies.map(movie => `
+    <div class="card">
+      ${movie.poster && movie.poster!=='N/A' ? `<img src="${movie.poster}">` :
+        '<div style="height:300px; background:#eee; display:flex;align-items:center;justify-content:center;">Нет изображения</div>'}
+      <div class="card-body">
+        <div>
+          <div class="card-title">${movie.title}</div>
+          <div>${movie.year||'—'}</div>
+        </div>
+        <button class="btn" onclick="showDetails('${movie.omdb_id}')">Подробнее</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function showDetails(id) {
+  try {
+    const movie = await api(`/api/movies/${id}`);
+    openModal(`
+      <h2>${movie.title}</h2>
+      <p><b>Год:</b> ${movie.year||'—'}</p>
+      <p><b>Описание:</b> ${movie.plot||'Нет описания'}</p>
+      <p><img src="${movie.poster}" style="width:100%"></p>
+    `);
+  } catch(err){ alert('Ошибка деталей'); }
+}
+
+
+(async function checkLogin() {
+  try {
+    await api('/api/users/me');
+    setAuthUI(true);
+  } catch { setAuthUI(false); }
+})();
+</script>
 </body>
 </html>
