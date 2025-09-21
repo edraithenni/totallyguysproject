@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Профиль</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      padding: 2rem;
+    }
+    .profile-card {
+      max-width: 500px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 10px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,.15);
+    }
+    h1 {
+      margin-top: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="profile-card">
+    <h1>Ваш профиль</h1>
+    <div id="profileContent">Загрузка...</div>
+  </div>
+
+  <script>
+    async function loadProfile() {
+      try {
+        const res = await fetch("/api/users/me", { credentials: "include" });
+        if (!res.ok) throw new Error("Ошибка HTTP " + res.status);
+        const user = await res.json();
+
+        document.getElementById("profileContent").innerHTML = `
+          <p><b>Имя:</b> ${user.name}</p>
+          <p><b>Email:</b> ${user.email}</p>
+          <p><b>Дата регистрации:</b> ${user.created_at || "—"}</p>
+        `;
+      } catch (err) {
+        console.error("Ошибка загрузки профиля:", err);
+        document.getElementById("profileContent").innerHTML =
+          "<p>Не удалось загрузить данные профиля</p>";
+      }
+    }
+
+    loadProfile();
+  </script>
+</body>
+</html>
