@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Auth</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    .card {
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      width: 350px;
+    }
+    h2 { margin-top: 0; }
+    input {
+      width: 100%;
+      padding: .6rem 1rem;
+      margin-bottom: .8rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 1rem;
+    }
+    button {
+      width: 100%;
+      padding: .6rem 1rem;
+      border: none;
+      border-radius: 8px;
+      background: #3182ce;
+      color: white;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .switch {
+      margin-top: 1rem;
+      text-align: center;
+      color: #555;
+      cursor: pointer;
+    }
+    .hidden { display: none; }
+    .msg {
+      background: #e6ffed;
+      border: 1px solid #b2f5ea;
+      padding: .5rem;
+      margin-bottom: .8rem;
+      border-radius: 6px;
+      color: #22543d;
+      font-size: .9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <!-- Registration -->
+    <div id="registerForm">
+      <h2>Регистрация</h2>
+      <div id="regMsg" class="msg hidden"></div>
+      <input id="regEmail" type="email" placeholder="Email">
+      <input id="regPass" type="password" placeholder="Пароль">
+      <button onclick="register()">Зарегистрироваться</button>
+      <div class="switch" onclick="showForm('loginForm')">Уже есть аккаунт? Войти</div>
+    </div>
+
+    <!-- Verifiction -->
+    <div id="verifyForm" class="hidden">
+      <h2>Подтверждение</h2>
+      <div id="verMsg" class="msg hidden"></div>
+      <input id="verEmail" type="email" placeholder="Email">
+      <input id="verCode" type="text" placeholder="Код из письма">
+      <button onclick="verify()">Подтвердить</button>
+      <div class="switch" onclick="showForm('loginForm')">Перейти ко входу</div>
+    </div>
+
+    <!-- Login -->
+    <div id="loginForm" class="hidden">
+      <h2>Вход</h2>
+      <div id="logMsg" class="msg hidden"></div>
+      <input id="logEmail" type="email" placeholder="Email">
+      <input id="logPass" type="password" placeholder="Пароль">
+      <button onclick="login()">Войти</button>
+      <div class="switch" onclick="showForm('registerForm')">Нет аккаунта? Регистрация</div>
+    </div>
+  </div>
+
+  <script>
+    function showForm(id) {
+      document.querySelectorAll('.card > div').forEach(el => el.classList.add('hidden'));
+      document.getElementById(id).classList.remove('hidden');
+    }
+
+    function showMsg(id, text) {
+      const box = document.getElementById(id);
+      box.textContent = text;
+      box.classList.remove('hidden');
+    }
+
+    async function register() {
+      const email = document.getElementById('regEmail').value.trim();
+      const password = document.getElementById('regPass').value.trim();
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showMsg('regMsg', 'Регистрация успешна! Введите код подтверждения.');
+        document.getElementById('verEmail').value = email;
+        showForm('verifyForm');
+      } catch (err) {
+        alert('Ошибка регистрации: ' + err.message);
+      }
+    }
+
+    async function verify() {
+      const email = document.getElementById('verEmail').value.trim();
+      const code = document.getElementById('verCode').value.trim();
+      try {
+        const res = await fetch('/api/auth/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, code })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showMsg('verMsg', 'Email подтвержден! Теперь войдите.');
+        showForm('loginForm');
+        document.getElementById('logEmail').value = email;
+      } catch (err) {
+        alert('Ошибка подтверждения: ' + err.message);
+      }
+    }
+
+    async function login() {
+      const email = document.getElementById('logEmail').value.trim();
+      const password = document.getElementById('logPass').value.trim();
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        //save a token
+        localStorage.setItem('token', data.token);
+        // go to home page
+        window.location.href = "index.html";
+      } catch (err) {
+        alert('Ошибка входа: ' + err.message);
+      }
+    }
+  </script>
+</body>
+</html>
