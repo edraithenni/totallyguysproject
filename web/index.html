@@ -129,16 +129,7 @@ document.getElementById('btnRegister').onclick = () => {
 };
 
 document.getElementById('btnProfile').onclick = async () => {
-  try {
-    const me = await api('/api/users/me');
-    openModal(`
-      <h2>Профиль</h2>
-      <p><b>Имя:</b> ${me.name}</p>
-      <p><b>Email:</b> ${me.email}</p>
-      <p><b>Описание:</b> ${me.description||'—'}</p>
-      <p><b>Коллекции:</b> ${me.collections.map(c=>c.name).join(', ')}</p>
-    `);
-  } catch(err){ alert('Ошибка: '+err.message); }
+   window.location.href = "profile.html";
 };
 
 document.getElementById('btnLogout').onclick = async () => {
