@@ -192,15 +192,7 @@ function renderResults(movies) {
 }
 
 async function showDetails(id) {
-  try {
-    const movie = await api(`/api/movies/${id}`);
-    openModal(`
-      <h2>${movie.title}</h2>
-      <p><b>Год:</b> ${movie.year||'—'}</p>
-      <p><b>Описание:</b> ${movie.plot||'Нет описания'}</p>
-      <p><img src="${movie.poster}" style="width:100%"></p>
-    `);
-  } catch(err){ alert('Ошибка деталей'); }
+   window.location.href = `details.html?id=${id}`;
 }
 
 
