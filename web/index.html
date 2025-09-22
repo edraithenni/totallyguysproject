@@ -106,26 +106,7 @@ document.getElementById('btnLogin').onclick = () => {
 };
 
 document.getElementById('btnRegister').onclick = () => {
-  openModal(`
-    <h2>Регистрация</h2>
-    <form id="registerForm">
-      <input type="text" name="name" placeholder="Имя" required>
-      <input type="email" name="email" placeholder="Email" required>
-      <input type="password" name="password" placeholder="Пароль (мин 6)" required>
-      <button>Зарегистрироваться</button>
-    </form>
-  `);
-  document.getElementById('registerForm').onsubmit = async e => {
-    e.preventDefault();
-    const f = e.target;
-    try {
-      const res = await api('/api/auth/register','POST',{
-        name:f.name.value, email:f.email.value, password:f.password.value
-      });
-      alert(res.message);
-      modal.style.display='none';
-    } catch(err){ alert(err.message); }
-  };
+  window.location.href = 'auth.html';
 };
 
 document.getElementById('btnProfile').onclick = async () => {

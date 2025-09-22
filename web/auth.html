@@ -118,6 +118,7 @@
 
     document.getElementById('verEmail').value = email;
     showForm('verifyForm');
+    console.log('Показываем форму верификации', document.getElementById('verifyForm'));
     showMsg('verMsg', 'Регистрация успешна! Введите код подтверждения.');
 
   } catch (err) {
