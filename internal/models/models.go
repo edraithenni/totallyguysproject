@@ -53,4 +53,9 @@ type Comment struct {
     ReviewID uint   `json:"review_id"` 
     UserID   uint   `json:"user_id"`
     Content  string `json:"content"`
+	//forum features
+	ParentID *uint     `json:"parent_id"` //nullable fk
+    Replies  []Comment `gorm:"foreignKey:ParentID" json:"replies"`
+	//upvotes downvotes 
+	Value     int   `json:"value"`
 }

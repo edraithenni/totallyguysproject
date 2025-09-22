@@ -266,3 +266,52 @@ func CreateUser(c *gin.Context, db *gorm.DB) {
 
 	c.JSON(http.StatusCreated, user)
 }
+
+// GET /api/users/me/playlists
+func GetMyPlaylists(c *gin.Context, db *gorm.DB) {
+	uid, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var playlists []models.Playlist
+	if err := db.Where("owner_id = ?", uid.(uint)).Find(&playlists).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch playlists"})
+		return
+	}
+
+	resp := []map[string]interface{}{}
+	for _, p := range playlists {
+		resp = append(resp, map[string]interface{}{
+			"id":    p.ID,
+			"name":  p.Name,
+			"cover": p.Cover,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"playlists": resp})
+}
+
+// GET /api/users/:id/playlists
+func GetUserPlaylists(c *gin.Context, db *gorm.DB) {
+	userID := c.Param("id")
+
+	var playlists []models.Playlist
+	if err := db.Where("owner_id = ?", userID).Find(&playlists).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch playlists"})
+		return
+	}
+
+	resp := []map[string]interface{}{}
+	for _, p := range playlists {
+		resp = append(resp, map[string]interface{}{
+			"id":    p.ID,
+			"name":  p.Name,
+			"cover": p.Cover,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"playlists": resp})
+}
+
