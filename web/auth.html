@@ -105,23 +105,25 @@
     }
 
     async function register() {
-      const name = document.getElementById("regName").value;
-      const email = document.getElementById('regEmail').value.trim();
-      const password = document.getElementById('regPass').value.trim();
-      try {
-        const res = await fetch('/api/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({name, email, password })
-        });
-        if (!res.ok) throw new Error(await res.text());
-        showMsg('regMsg', 'Регистрация успешна! Введите код подтверждения.');
-        document.getElementById('verEmail').value = email;
-        showForm('verifyForm');
-      } catch (err) {
-        alert('Ошибка регистрации: ' + err.message);
-      }
-    }
+  const name = document.getElementById("regName").value;
+  const email = document.getElementById('regEmail').value.trim();
+  const password = document.getElementById('regPass').value.trim();
+  try {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password })
+    });
+    if (!res.ok) throw new Error(await res.text());
+
+    document.getElementById('verEmail').value = email;
+    showForm('verifyForm');
+    showMsg('verMsg', 'Регистрация успешна! Введите код подтверждения.');
+
+  } catch (err) {
+    alert('Ошибка регистрации: ' + err.message);
+  }
+}
 
     async function verify() {
       const email = document.getElementById('verEmail').value.trim();
