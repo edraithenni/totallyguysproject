@@ -44,7 +44,8 @@ type CurrentUserResponse struct {
     Description string                   `json:"description"`
     Role        string                   `json:"role"`
     Collections []PlaylistSummary        `json:"collections"`
-    Friends     []uint                   `json:"friends"`
+    Followers   []uint                   `json:"followers"`
+    Following   []uint                   `json:"following"`
     Reviews     []ReviewSummary          `json:"reviews"`
 }
 
@@ -100,9 +101,24 @@ func GetCurrentUser(c *gin.Context, db *gorm.DB) {
 		})
 	}
     // user friends for frontend
-	friends := []uint{}
-    for _, f := range user.Friends {
-	    friends = append(friends, f.ID)
+	//friends := []uint{}
+    //for _, f := range user.Friends {
+	  //  friends = append(friends, f.ID)
+    //}
+	var following []models.Follow
+    db.Where("follower_id = ?", user.ID).Find(&following)
+
+    var followingIDs []uint
+    for _, f := range following {
+        followingIDs = append(followingIDs, f.FollowedID)
+    }
+
+    var followers []models.Follow
+    db.Where("followed_id = ?", user.ID).Find(&followers)
+
+    var followerIDs []uint
+    for _, f := range followers {
+        followerIDs = append(followerIDs, f.FollowerID)
     }
 
     // user reviews for frontend
@@ -124,7 +140,9 @@ func GetCurrentUser(c *gin.Context, db *gorm.DB) {
 		"avatar":      user.Avatar,
 		"description": user.Description,
 		"collections": collections,
-		"friends":     friends,
+		//"friends":     friends,
+		"following":   followingIDs,
+        "followers":   followerIDs,
 		"reviews":     reviews,
 	})
 }
@@ -193,7 +211,7 @@ func GetProfile(c *gin.Context, db *gorm.DB) {
     }
 
     var user models.User
-    if err := db.Preload("Playlists").Preload("Reviews").Preload("Friends").
+    if err := db.Preload("Playlists").Preload("Reviews").
         First(&user, id).Error; err != nil {
         c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
         return
@@ -218,9 +236,24 @@ func GetProfile(c *gin.Context, db *gorm.DB) {
         })
     }
 
-    friends := []uint{}
-    for _, f := range user.Friends {
-        friends = append(friends, f.ID)
+  //  friends := []uint{}
+   // for _, f := range user.Friends {
+     //   friends = append(friends, f.ID)
+    //}
+	var following []models.Follow
+    db.Where("follower_id = ?", user.ID).Find(&following)
+
+    var followingIDs []uint
+    for _, f := range following {
+        followingIDs = append(followingIDs, f.FollowedID)
+    }
+
+    var followers []models.Follow
+    db.Where("followed_id = ?", user.ID).Find(&followers)
+
+    var followerIDs []uint
+    for _, f := range followers {
+        followerIDs = append(followerIDs, f.FollowerID)
     }
 
     c.JSON(http.StatusOK, gin.H{
@@ -229,7 +262,8 @@ func GetProfile(c *gin.Context, db *gorm.DB) {
         "avatar":      user.Avatar,
         "description": user.Description,
         "playlists":   playlists,
-        "friends":     friends,
+        "following":   followingIDs,
+        "followers":   followerIDs,
         "reviews":     reviews,
     })
 }
