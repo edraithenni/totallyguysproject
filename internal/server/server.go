@@ -6,7 +6,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-
 )
 
 type Server struct {
@@ -21,7 +20,7 @@ func NewServer(db *gorm.DB) *Server {
 	frontendPath := filepath.Join("..", "..", "web")
 	r.Static("/static", frontendPath)
 	r.Static("/uploads", "./uploads")
-
+    
 	// API
 	api := r.Group("/api")
 	{

@@ -10,7 +10,73 @@ import (
 	"gorm.io/gorm"
 )
 
-// GET /api/users/me
+//ultranasral 
+type UpdateUserRequest struct {
+    Name        string `json:"name"`
+    Description string `json:"description"`
+}
+
+type PlaylistsResponse struct {
+    Playlists []PlaylistSummary `json:"playlists"`
+}
+
+type CreateUserRequest struct {
+    Name     string `json:"name"`
+    Email    string `json:"email"`
+    Password string `json:"password"`
+    Role     string `json:"role"`
+}
+
+type UserResponse struct {
+    ID          uint   `json:"id"`
+    Name        string `json:"name"`
+    Email       string `json:"email"`
+    Avatar      string `json:"avatar"`
+    Description string `json:"description"`
+    Role        string `json:"role"`
+}
+
+type CurrentUserResponse struct {
+    ID          uint                     `json:"id"`
+    Name        string                   `json:"name"`
+    Email       string                   `json:"email"`
+    Avatar      string                   `json:"avatar"`
+    Description string                   `json:"description"`
+    Role        string                   `json:"role"`
+    Collections []PlaylistSummary        `json:"collections"`
+    Friends     []uint                   `json:"friends"`
+    Reviews     []ReviewSummary          `json:"reviews"`
+}
+
+type PlaylistSummary struct {
+    ID    uint   `json:"id"`
+    Name  string `json:"name"`
+    Cover string `json:"cover"`
+}
+
+type ReviewSummary struct {
+    ID      uint   `json:"id"`
+    MovieID uint   `json:"movieId"`
+    Content string `json:"content"`
+    Rating  int    `json:"rating"`
+}
+
+type MessageResponse struct {
+    Message string `json:"message"`
+}
+
+type AvatarResponse struct {
+    Avatar string `json:"avatar"`
+}
+
+// @Summary Get current user
+// @Description GET api/users/me.
+// @Tags users
+// @Accept json
+// @Produce json
+// @Success 200 {object} handlers.CurrentUserResponse
+// @Failure 401 {object} map[string]string
+// @Router /users/me [get]
 func GetCurrentUser(c *gin.Context, db *gorm.DB) {
 	uid, exists := c.Get("userID")
 	if !exists {
@@ -63,7 +129,21 @@ func GetCurrentUser(c *gin.Context, db *gorm.DB) {
 	})
 }
 
-// PUT /api/users/me
+type SearchUsersResponse struct {
+    Users []UserResponse `json:"users"`
+}
+
+
+// @Summary Update current user
+// @Description PUT api/users/me.
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param body body UpdateUserRequest true "User data"
+// @Success 200 {object} handlers.MessageResponse
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /users/me [put]
 func UpdateCurrentUser(c *gin.Context, db *gorm.DB) {
 	uid, _ := c.Get("userID")
 	var req struct {
@@ -92,7 +172,16 @@ func UpdateCurrentUser(c *gin.Context, db *gorm.DB) {
 	c.JSON(http.StatusOK, gin.H{"message": "updated"})
 }
 
-// GET /api/users/:id
+
+// @Summary Get user profile
+// @Description GET api/users/:id
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param id path int true "User ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 404 {object} map[string]string
+// @Router /users/{id} [get]
 func GetProfile(c *gin.Context, db *gorm.DB) {
     id := c.Param("id")
 
@@ -145,7 +234,17 @@ func GetProfile(c *gin.Context, db *gorm.DB) {
     })
 }
 
-// GET /api/users/search
+
+// @Summary Search users
+// @Description GET api/users/search
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param query query string true "Search query"
+// @Success 200 {object} handlers.SearchUsersResponse
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /users/search [get]
 func SearchUsers(c *gin.Context, db *gorm.DB) {
     query := c.Query("query")
     if query == "" {
@@ -174,6 +273,17 @@ func SearchUsers(c *gin.Context, db *gorm.DB) {
 }
 
 //not ready yet
+// @Summary Upload avatar
+// @Description loads cur user avatar.
+// @Tags users
+// @Accept multipart/form-data
+// @Produce json
+// @Param avatar formData file true "Avatar file"
+// @Success 200 {object} handlers.AvatarResponse
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /users/me/avatar [post]
 func UploadAvatar(c *gin.Context, db *gorm.DB) {
     userID, ok := c.Get("userID")
     if !ok {
@@ -208,7 +318,16 @@ func UploadAvatar(c *gin.Context, db *gorm.DB) {
     c.JSON(http.StatusOK, gin.H{"avatar": avatarURL})
 }
 
-// Admin create user(alternative for register if not done yet)
+// @Summary Create user (admin)
+// @Description Admin create user(alternative for register if not done yet).
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param body body CreateUserRequest true "New user"
+// @Success 201 {object} UserResponse
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /users [post]
 func CreateUser(c *gin.Context, db *gorm.DB) {
 	var req struct {
 		Name     string `json:"name"`
@@ -267,7 +386,15 @@ func CreateUser(c *gin.Context, db *gorm.DB) {
 	c.JSON(http.StatusCreated, user)
 }
 
-// GET /api/users/me/playlists
+// @Summary Get my playlists
+// @Description GET api/users/me/playlists
+// @Tags playlists
+// @Accept json
+// @Produce json
+// @Success 200 {object} handlers.PlaylistsResponse
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /users/me/playlists [get]
 func GetMyPlaylists(c *gin.Context, db *gorm.DB) {
 	uid, exists := c.Get("userID")
 	if !exists {
@@ -293,7 +420,15 @@ func GetMyPlaylists(c *gin.Context, db *gorm.DB) {
 	c.JSON(http.StatusOK, gin.H{"playlists": resp})
 }
 
-// GET /api/users/:id/playlists
+// @Summary Get user playlists
+// @Description  GET api/users/:id/playlists
+// @Tags playlists
+// @Accept json
+// @Produce json
+// @Param id path int true "User ID"
+// @Success 200 {object} handlers.PlaylistsResponse
+// @Failure 500 {object} map[string]string
+// @Router /users/{id}/playlists [get]
 func GetUserPlaylists(c *gin.Context, db *gorm.DB) {
 	userID := c.Param("id")
 
@@ -314,4 +449,3 @@ func GetUserPlaylists(c *gin.Context, db *gorm.DB) {
 
 	c.JSON(http.StatusOK, gin.H{"playlists": resp})
 }
-
