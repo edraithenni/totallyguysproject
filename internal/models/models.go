@@ -13,9 +13,12 @@ type User struct {
 	Avatar           string     `json:"avatar"`
 	Description      string     `json:"description"`
 	Playlists        []Playlist `gorm:"foreignKey:OwnerID"` // FK
-	Friends          []*User    `gorm:"many2many:user_friends;joinForeignKey:UserID;joinReferences:FriendID"`
+	//Friends          []*User    `gorm:"many2many:user_friends;joinForeignKey:UserID;joinReferences:FriendID"`
 	Reviews          []Review   `gorm:"foreignKey:UserID"`
+	Followers []Follow `gorm:"foreignKey:FollowedID"`
+    Following []Follow `gorm:"foreignKey:FollowerID"`
 }
+
 type Movie struct {
 	gorm.Model
     OMDBID   string  `json:"omdb_id" gorm:"uniqueIndex"` // imdb id
@@ -58,4 +61,10 @@ type Comment struct {
     Replies  []Comment `gorm:"foreignKey:ParentID" json:"replies"`
 	//upvotes downvotes 
 	Value     int   `json:"value"`
+}
+
+type Follow struct {
+    gorm.Model
+    FollowerID uint `gorm:"uniqueIndex:idx_follower_followed"`
+    FollowedID uint `gorm:"uniqueIndex:idx_follower_followed"`
 }

@@ -293,4 +293,3 @@ func UnlikeMovie(c *gin.Context, db *gorm.DB) {
 }
 
 
-

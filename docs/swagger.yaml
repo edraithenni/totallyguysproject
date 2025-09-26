@@ -1,9 +1,356 @@
 basePath: /api
+definitions:
+  handlers.AvatarResponse:
+    properties:
+      avatar:
+        type: string
+    type: object
+  handlers.CreateUserRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+      role:
+        type: string
+    type: object
+  handlers.CurrentUserResponse:
+    properties:
+      avatar:
+        type: string
+      collections:
+        items:
+          $ref: '#/definitions/handlers.PlaylistSummary'
+        type: array
+      description:
+        type: string
+      email:
+        type: string
+      friends:
+        items:
+          type: integer
+        type: array
+      id:
+        type: integer
+      name:
+        type: string
+      reviews:
+        items:
+          $ref: '#/definitions/handlers.ReviewSummary'
+        type: array
+      role:
+        type: string
+    type: object
+  handlers.MessageResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  handlers.PlaylistSummary:
+    properties:
+      cover:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  handlers.PlaylistsResponse:
+    properties:
+      playlists:
+        items:
+          $ref: '#/definitions/handlers.PlaylistSummary'
+        type: array
+    type: object
+  handlers.ReviewSummary:
+    properties:
+      content:
+        type: string
+      id:
+        type: integer
+      movieId:
+        type: integer
+      rating:
+        type: integer
+    type: object
+  handlers.SearchUsersResponse:
+    properties:
+      users:
+        items:
+          $ref: '#/definitions/handlers.UserResponse'
+        type: array
+    type: object
+  handlers.UpdateUserRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+    type: object
+  handlers.UserResponse:
+    properties:
+      avatar:
+        type: string
+      description:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      role:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact: {}
-  description: Backend API for movie search & playlists
+  description: API для TotallyGuysProject
   title: TotallyGuysProject API
   version: "1.0"
-paths: {}
+paths:
+  /users:
+    post:
+      consumes:
+      - application/json
+      description: Admin create user(alternative for register if not done yet).
+      parameters:
+      - description: New user
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create user (admin)
+      tags:
+      - users
+  /users/{id}:
+    get:
+      consumes:
+      - application/json
+      description: GET api/users/:id
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get user profile
+      tags:
+      - users
+  /users/{id}/playlists:
+    get:
+      consumes:
+      - application/json
+      description: GET api/users/:id/playlists
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlaylistsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get user playlists
+      tags:
+      - playlists
+  /users/me:
+    get:
+      consumes:
+      - application/json
+      description: GET api/users/me.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.CurrentUserResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get current user
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      description: PUT api/users/me.
+      parameters:
+      - description: User data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update current user
+      tags:
+      - users
+  /users/me/avatar:
+    post:
+      consumes:
+      - multipart/form-data
+      description: loads cur user avatar.
+      parameters:
+      - description: Avatar file
+        in: formData
+        name: avatar
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AvatarResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Upload avatar
+      tags:
+      - users
+  /users/me/playlists:
+    get:
+      consumes:
+      - application/json
+      description: GET api/users/me/playlists
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlaylistsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get my playlists
+      tags:
+      - playlists
+  /users/search:
+    get:
+      consumes:
+      - application/json
+      description: GET api/users/search
+      parameters:
+      - description: Search query
+        in: query
+        name: query
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SearchUsersResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Search users
+      tags:
+      - users
 swagger: "2.0"

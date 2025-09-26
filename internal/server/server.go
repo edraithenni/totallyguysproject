@@ -6,7 +6,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-
 )
 
 type Server struct {
@@ -21,7 +20,7 @@ func NewServer(db *gorm.DB) *Server {
 	frontendPath := filepath.Join("..", "..", "web")
 	r.Static("/static", frontendPath)
 	r.Static("/uploads", "./uploads")
-
+    
 	// API
 	api := r.Group("/api")
 	{
@@ -41,15 +40,28 @@ func NewServer(db *gorm.DB) *Server {
 		api.POST("/auth/logout", handlers.Logout)
 		api.POST("/auth/verify", func(c *gin.Context) { handlers.VerifyEmail(c, db) })
 
-		// cur user jwt	
+		
 		user := api.Group("/users")
-		user.Use(handlers.AuthMiddleware(false))
 		{
-			user.GET("/me", func(c *gin.Context) { handlers.GetCurrentUser(c, db) })
-			user.PUT("/me", func(c *gin.Context) { handlers.UpdateCurrentUser(c, db) })
-			user.POST("/me/avatar", func(c *gin.Context) { handlers.UploadAvatar(c, db) })
-			user.GET("/me/playlists", func(c *gin.Context) { handlers.GetMyPlaylists(c, db) }) 
-		}
+            user.GET("/:id/followers", func(c *gin.Context) { handlers.GetFollowersByID(c, db) })
+            user.GET("/:id/following", func(c *gin.Context) { handlers.GetFollowingByID(c, db) })
+			userAuth := user.Group("/")
+            userAuth.Use(handlers.AuthMiddleware(false))
+            {          
+				// current user
+                userAuth.GET("/me", func(c *gin.Context) { handlers.GetCurrentUser(c, db) })
+                userAuth.PUT("/me", func(c *gin.Context) { handlers.UpdateCurrentUser(c, db) })
+                userAuth.POST("/me/avatar", func(c *gin.Context) { handlers.UploadAvatar(c, db) })
+                userAuth.GET("/me/playlists", func(c *gin.Context) { handlers.GetMyPlaylists(c, db) })
+
+                // follow/unfollow other users
+				userAuth.GET("/me/followers", func(c *gin.Context) { handlers.GetMyFollowers(c, db) })
+                userAuth.GET("/me/following", func(c *gin.Context) { handlers.GetMyFollowing(c, db) })
+                userAuth.POST("/:id/follow", func(c *gin.Context) { handlers.FollowUser(c, db) })
+                userAuth.DELETE("/:id/follow", func(c *gin.Context) { handlers.UnfollowUser(c, db) })
+            }
+        }
+        
 		api.GET("/users/:id/playlists", func(c *gin.Context) { handlers.GetUserPlaylists(c, db) }) 
 		//other users search (no jwt)
 		api.GET("/users/search", func(c *gin.Context) { handlers.SearchUsers(c, db) })
