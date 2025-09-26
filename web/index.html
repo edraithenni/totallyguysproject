@@ -4,13 +4,45 @@
   <meta charset="UTF-8">
   <title>Movie App</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link href="https://fonts.cdnfonts.com/css/so-bad" rel="stylesheet">
   <style>
-    body { font-family: system-ui, sans-serif; margin: 0; background: #f4f6f9; color: #333; }
+    body { font-family: "So Bad", sans-serif; margin: 0; background: #000000; color: #333; }
     header {
-      background: #2d3748; color: white; padding: 1rem;
-      display: flex; justify-content: space-between; align-items: center;
+        background: url('src/hat.png') repeat center top;
+        height: 120px;
+        background-size: auto;
+       
+        display: flex;
+        align-items: center;
+      
     }
-    header h1 { margin: 0; }
+    
+    header h1 {
+      font-family: "So Bad", sans-serif;
+      font-size: 3.5rem; 
+      letter-spacing: 0.5px;
+      margin: 0;
+      padding-left: 15px;
+      color: #584fdb;
+      text-shadow: 
+        -1px -1px 0 #ffc659,
+        1px -1px 0 #ffc659,
+        -1px  1px 0 #ffc659,
+        1px  1px 0 #ffc659,
+        -2px -2px 0 #fb5255,
+        2px -2px 0 #fb5255,
+        -2px  2px 0 #fb5255,
+        2px  2px 0 #fb5255;
+      margin: 0;
+      
+       
+      
+    }
+    header nav {
+      margin-left: auto;
+      display: flex;
+      gap: .5rem; 
+  }
     nav button {
       margin-left: .5rem; padding: .4rem .8rem; border: none;
       border-radius: 6px; cursor: pointer;
@@ -18,10 +50,10 @@
     nav button.primary { background: #3182ce; color: white; }
     nav button.secondary { background: #4a5568; color: white; }
     .search-box { max-width: 600px; margin: 2rem auto; display: flex; gap: .5rem; }
-    .search-box input { flex: 1; padding: .6rem 1rem; border-radius: 8px; border: 1px solid #ccc; font-size: 1rem; }
-    .search-box button { padding: .6rem 1rem; border: none; background: #3182ce; color: white; border-radius: 8px; cursor: pointer; }
+    .search-box input { flex: 1; padding: .6rem 1rem; border-radius: 8px; border: 1px solid #ccc; font-size: 1rem; background-color: #ffc659; }
+    .search-box button { padding: .6rem 1rem; border: none; background: #584fdb; color: white; border-radius: 8px; cursor: pointer; }
     .results { display: grid; grid-template-columns: repeat(auto-fill,minmax(200px,1fr)); gap: 1rem; max-width: 1200px; margin: 0 auto; padding: 1rem; }
-    .card { background: white; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); overflow: hidden; display: flex; flex-direction: column; }
+    .card { background: #ffc659; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); overflow: hidden; display: flex; flex-direction: column; }
     .card img { width: 100%; height: 300px; object-fit: cover; }
     .card-body { padding: .8rem; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
     .btn { padding: .4rem .8rem; border-radius: 6px; background: #3182ce; color: white; text-align: center; cursor: pointer; }
@@ -35,7 +67,7 @@
 </head>
 <body>
   <header>
-    <h1>Movie App</h1>
+    <h1>Totally cats</h1>
     <nav>
       <button id="btnLogin" class="primary">Войти</button>
       <button id="btnRegister" class="secondary">Регистрация</button>
@@ -149,19 +181,17 @@ async function searchMovies() {
 function renderResults(movies) {
   if (!movies.length) { resultsEl.innerHTML='<p>Ничего не найдено</p>'; return; }
   resultsEl.innerHTML = movies.map(movie => `
-    <div class="card">
+    <div class="card" onclick="showDetails('${movie.omdb_id}')" style="cursor:pointer;">
       ${movie.poster && movie.poster!=='N/A' ? `<img src="${movie.poster}">` :
         '<div style="height:300px; background:#eee; display:flex;align-items:center;justify-content:center;">Нет изображения</div>'}
       <div class="card-body">
-        <div>
-          <div class="card-title">${movie.title}</div>
-          <div>${movie.year||'—'}</div>
-        </div>
-        <button class="btn" onclick="showDetails('${movie.omdb_id}')">Подробнее</button>
+        <div class="card-title">${movie.title}</div>
+        <div>${movie.year||'—'}</div>
       </div>
     </div>
   `).join('');
 }
+
 
 async function showDetails(id) {
    window.location.href = `details.html?id=${id}`;

@@ -1,73 +1,74 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
-	"totallyguysproject/internal/models"
-    "fmt"
 	"time"
+	"totallyguysproject/internal/models"
 	"totallyguysproject/internal/utils"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-//ultranasral 
+// ultranasral
 type UpdateUserRequest struct {
-    Name        string `json:"name"`
-    Description string `json:"description"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 type PlaylistsResponse struct {
-    Playlists []PlaylistSummary `json:"playlists"`
+	Playlists []PlaylistSummary `json:"playlists"`
 }
 
 type CreateUserRequest struct {
-    Name     string `json:"name"`
-    Email    string `json:"email"`
-    Password string `json:"password"`
-    Role     string `json:"role"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Role     string `json:"role"`
 }
 
 type UserResponse struct {
-    ID          uint   `json:"id"`
-    Name        string `json:"name"`
-    Email       string `json:"email"`
-    Avatar      string `json:"avatar"`
-    Description string `json:"description"`
-    Role        string `json:"role"`
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Email       string `json:"email"`
+	Avatar      string `json:"avatar"`
+	Description string `json:"description"`
+	Role        string `json:"role"`
 }
 
 type CurrentUserResponse struct {
-    ID          uint                     `json:"id"`
-    Name        string                   `json:"name"`
-    Email       string                   `json:"email"`
-    Avatar      string                   `json:"avatar"`
-    Description string                   `json:"description"`
-    Role        string                   `json:"role"`
-    Collections []PlaylistSummary        `json:"collections"`
-    Followers   []uint                   `json:"followers"`
-    Following   []uint                   `json:"following"`
-    Reviews     []ReviewSummary          `json:"reviews"`
+	ID          uint              `json:"id"`
+	Name        string            `json:"name"`
+	Email       string            `json:"email"`
+	Avatar      string            `json:"avatar"`
+	Description string            `json:"description"`
+	Role        string            `json:"role"`
+	Collections []PlaylistSummary `json:"collections"`
+	Followers   []uint            `json:"followers"`
+	Following   []uint            `json:"following"`
+	Reviews     []ReviewSummary   `json:"reviews"`
 }
 
 type PlaylistSummary struct {
-    ID    uint   `json:"id"`
-    Name  string `json:"name"`
-    Cover string `json:"cover"`
+	ID    uint   `json:"id"`
+	Name  string `json:"name"`
+	Cover string `json:"cover"`
 }
 
 type ReviewSummary struct {
-    ID      uint   `json:"id"`
-    MovieID uint   `json:"movieId"`
-    Content string `json:"content"`
-    Rating  int    `json:"rating"`
+	ID      uint   `json:"id"`
+	MovieID uint   `json:"movieId"`
+	Content string `json:"content"`
+	Rating  int    `json:"rating"`
 }
 
 type MessageResponse struct {
-    Message string `json:"message"`
+	Message string `json:"message"`
 }
 
 type AvatarResponse struct {
-    Avatar string `json:"avatar"`
+	Avatar string `json:"avatar"`
 }
 
 // @Summary Get current user
@@ -86,10 +87,10 @@ func GetCurrentUser(c *gin.Context, db *gorm.DB) {
 	}
 
 	var user models.User
-    if err := db.Preload("Playlists").Preload("Reviews").First(&user, uid.(uint)).Error; err != nil {
-        c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
-        return
-    }
+	if err := db.Preload("Playlists").Preload("Reviews").First(&user, uid.(uint)).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
 
 	// user playlists for frontend
 	collections := []map[string]interface{}{}
@@ -97,40 +98,40 @@ func GetCurrentUser(c *gin.Context, db *gorm.DB) {
 		collections = append(collections, map[string]interface{}{
 			"id":    p.ID,
 			"name":  p.Name,
-			"cover": "/static/collection-placeholder.png", 
+			"cover": "/static/collection-placeholder.png",
 		})
 	}
-    // user friends for frontend
+	// user friends for frontend
 	//friends := []uint{}
-    //for _, f := range user.Friends {
-	  //  friends = append(friends, f.ID)
-    //}
+	//for _, f := range user.Friends {
+	//  friends = append(friends, f.ID)
+	//}
 	var following []models.Follow
-    db.Where("follower_id = ?", user.ID).Find(&following)
+	db.Where("follower_id = ?", user.ID).Find(&following)
 
-    var followingIDs []uint
-    for _, f := range following {
-        followingIDs = append(followingIDs, f.FollowedID)
-    }
+	var followingIDs []uint
+	for _, f := range following {
+		followingIDs = append(followingIDs, f.FollowedID)
+	}
 
-    var followers []models.Follow
-    db.Where("followed_id = ?", user.ID).Find(&followers)
+	var followers []models.Follow
+	db.Where("followed_id = ?", user.ID).Find(&followers)
 
-    var followerIDs []uint
-    for _, f := range followers {
-        followerIDs = append(followerIDs, f.FollowerID)
-    }
+	var followerIDs []uint
+	for _, f := range followers {
+		followerIDs = append(followerIDs, f.FollowerID)
+	}
 
-    // user reviews for frontend
+	// user reviews for frontend
 	reviews := []map[string]interface{}{}
-    for _, r := range user.Reviews {
-        reviews = append(reviews, map[string]interface{}{
-            "id":      r.ID,
-            "movieId": r.MovieID,
-            "content": r.Content,
-            "rating":  r.Rating,
-        })
-    }
+	for _, r := range user.Reviews {
+		reviews = append(reviews, map[string]interface{}{
+			"id":      r.ID,
+			"movieId": r.MovieID,
+			"content": r.Content,
+			"rating":  r.Rating,
+		})
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"id":          user.ID,
@@ -141,16 +142,15 @@ func GetCurrentUser(c *gin.Context, db *gorm.DB) {
 		"description": user.Description,
 		"collections": collections,
 		//"friends":     friends,
-		"following":   followingIDs,
-        "followers":   followerIDs,
-		"reviews":     reviews,
+		"following": followingIDs,
+		"followers": followerIDs,
+		"reviews":   reviews,
 	})
 }
 
 type SearchUsersResponse struct {
-    Users []UserResponse `json:"users"`
+	Users []UserResponse `json:"users"`
 }
-
 
 // @Summary Update current user
 // @Description PUT api/users/me.
@@ -190,7 +190,6 @@ func UpdateCurrentUser(c *gin.Context, db *gorm.DB) {
 	c.JSON(http.StatusOK, gin.H{"message": "updated"})
 }
 
-
 // @Summary Get user profile
 // @Description GET api/users/:id
 // @Tags users
@@ -201,73 +200,72 @@ func UpdateCurrentUser(c *gin.Context, db *gorm.DB) {
 // @Failure 404 {object} map[string]string
 // @Router /users/{id} [get]
 func GetProfile(c *gin.Context, db *gorm.DB) {
-    id := c.Param("id")
+	id := c.Param("id")
 
-    uid, exists := c.Get("userID")
-    if exists && id == fmt.Sprintf("%v", uid) {
-        // redirecting to /me
-        GetCurrentUser(c, db)
-        return
-    }
+	uid, exists := c.Get("userID")
+	if exists && id == fmt.Sprintf("%v", uid) {
+		// redirecting to /me
+		GetCurrentUser(c, db)
+		return
+	}
 
-    var user models.User
-    if err := db.Preload("Playlists").Preload("Reviews").
-        First(&user, id).Error; err != nil {
-        c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
-        return
-    }
+	var user models.User
+	if err := db.Preload("Playlists").Preload("Reviews").
+		First(&user, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
 
-    playlists := []map[string]interface{}{}
-    for _, p := range user.Playlists {
-        playlists = append(playlists, map[string]interface{}{
-            "id":    p.ID,
-            "name":  p.Name,
-            "cover": p.Cover,
-        })
-    }
+	playlists := []map[string]interface{}{}
+	for _, p := range user.Playlists {
+		playlists = append(playlists, map[string]interface{}{
+			"id":    p.ID,
+			"name":  p.Name,
+			"cover": p.Cover,
+		})
+	}
 
-    reviews := []map[string]interface{}{}
-    for _, r := range user.Reviews {
-        reviews = append(reviews, map[string]interface{}{
-            "id":      r.ID,
-            "movieId": r.MovieID,
-            "content": r.Content,
-            "rating":  r.Rating,
-        })
-    }
+	reviews := []map[string]interface{}{}
+	for _, r := range user.Reviews {
+		reviews = append(reviews, map[string]interface{}{
+			"id":      r.ID,
+			"movieId": r.MovieID,
+			"content": r.Content,
+			"rating":  r.Rating,
+		})
+	}
 
-  //  friends := []uint{}
-   // for _, f := range user.Friends {
-     //   friends = append(friends, f.ID)
-    //}
+	//  friends := []uint{}
+	// for _, f := range user.Friends {
+	//   friends = append(friends, f.ID)
+	//}
 	var following []models.Follow
-    db.Where("follower_id = ?", user.ID).Find(&following)
+	db.Where("follower_id = ?", user.ID).Find(&following)
 
-    var followingIDs []uint
-    for _, f := range following {
-        followingIDs = append(followingIDs, f.FollowedID)
-    }
+	var followingIDs []uint
+	for _, f := range following {
+		followingIDs = append(followingIDs, f.FollowedID)
+	}
 
-    var followers []models.Follow
-    db.Where("followed_id = ?", user.ID).Find(&followers)
+	var followers []models.Follow
+	db.Where("followed_id = ?", user.ID).Find(&followers)
 
-    var followerIDs []uint
-    for _, f := range followers {
-        followerIDs = append(followerIDs, f.FollowerID)
-    }
+	var followerIDs []uint
+	for _, f := range followers {
+		followerIDs = append(followerIDs, f.FollowerID)
+	}
 
-    c.JSON(http.StatusOK, gin.H{
-        "id":          user.ID,
-        "name":        user.Name,
-        "avatar":      user.Avatar,
-        "description": user.Description,
-        "playlists":   playlists,
-        "following":   followingIDs,
-        "followers":   followerIDs,
-        "reviews":     reviews,
-    })
+	c.JSON(http.StatusOK, gin.H{
+		"id":          user.ID,
+		"name":        user.Name,
+		"avatar":      user.Avatar,
+		"description": user.Description,
+		"playlists":   playlists,
+		"following":   followingIDs,
+		"followers":   followerIDs,
+		"reviews":     reviews,
+	})
 }
-
 
 // @Summary Search users
 // @Description GET api/users/search
@@ -280,33 +278,33 @@ func GetProfile(c *gin.Context, db *gorm.DB) {
 // @Failure 500 {object} map[string]string
 // @Router /users/search [get]
 func SearchUsers(c *gin.Context, db *gorm.DB) {
-    query := c.Query("query")
-    if query == "" {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "query required"})
-        return
-    }
+	query := c.Query("query")
+	if query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "query required"})
+		return
+	}
 
-    var users []models.User
-    if err := db.Where("name ILIKE ? OR email ILIKE ?", "%"+query+"%", "%"+query+"%").
-        Find(&users).Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to search users"})
-        return
-    }
+	var users []models.User
+	if err := db.Where("name ILIKE ? OR email ILIKE ?", "%"+query+"%", "%"+query+"%").
+		Find(&users).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to search users"})
+		return
+	}
 
-    safeUsers := []gin.H{}
-    for _, u := range users {
-        safeUsers = append(safeUsers, gin.H{
-            "id":     u.ID,
-            "name":   u.Name,
-            "email":  u.Email,
-            "avatar": u.Avatar,
-        })
-    }
+	safeUsers := []gin.H{}
+	for _, u := range users {
+		safeUsers = append(safeUsers, gin.H{
+			"id":     u.ID,
+			"name":   u.Name,
+			"email":  u.Email,
+			"avatar": u.Avatar,
+		})
+	}
 
-    c.JSON(http.StatusOK, gin.H{"users": safeUsers})
+	c.JSON(http.StatusOK, gin.H{"users": safeUsers})
 }
 
-//not ready yet
+// not ready yet
 // @Summary Upload avatar
 // @Description loads cur user avatar.
 // @Tags users
@@ -319,37 +317,52 @@ func SearchUsers(c *gin.Context, db *gorm.DB) {
 // @Failure 500 {object} map[string]string
 // @Router /users/me/avatar [post]
 func UploadAvatar(c *gin.Context, db *gorm.DB) {
-    userID, ok := c.Get("userID")
-    if !ok {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-        return
-    }
+	userID, ok := c.Get("userID")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
-    file, err := c.FormFile("avatar")
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "file not provided"})
-        return
-    }
+	file, err := c.FormFile("avatar")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "file not provided"})
+		return
+	}
 
-    // gen unique filename (userID + timestamp)
-    filename := fmt.Sprintf("user_%v_%d_%s", userID, time.Now().Unix(), file.Filename)
-    savePath := "./uploads/" + filename
+	// gen unique filename (userID + timestamp)
+	filename := fmt.Sprintf("user_%v_%d_%s", userID, time.Now().Unix(), file.Filename)
+	savePath := "./uploads/" + filename
 
-    // save to uploads
-    if err := c.SaveUploadedFile(file, savePath); err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
-        return
-    }
+	// save to uploads
+	if err := c.SaveUploadedFile(file, savePath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
+		return
+	}
 
-    // for frontend url
-    avatarURL := "/uploads/" + filename
+	// for frontend url
+	avatarURL := "/uploads/" + filename
 
-    if err := db.Model(&models.User{}).Where("id = ?", userID).Update("avatar", avatarURL).Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update avatar"})
-        return
-    }
+	if err := db.Model(&models.User{}).Where("id = ?", userID).Update("avatar", avatarURL).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update avatar"})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{"avatar": avatarURL})
+	c.JSON(http.StatusOK, gin.H{"avatar": avatarURL})
+}
+
+func DeleteAvatar(c *gin.Context, db *gorm.DB) {
+	userID, ok := c.Get("userID")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	if err := db.Model(&models.User{}).Where("id = ?", userID).Update("avatar", "").Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update avatar"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"avatar": ""})
 }
 
 // @Summary Create user (admin)
@@ -399,7 +412,7 @@ func CreateUser(c *gin.Context, db *gorm.DB) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
 		return
 	}
-	
+
 	defaultPlaylists := []struct {
 		Name  string
 		Cover string

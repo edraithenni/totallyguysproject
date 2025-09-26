@@ -12,42 +12,171 @@
       padding: 2rem;
     }
     .profile-card {
-      max-width: 500px;
+      max-width: 600px;
       margin: 0 auto;
       background: white;
       border-radius: 10px;
       padding: 1.5rem;
       box-shadow: 0 2px 6px rgba(0,0,0,.15);
     }
-    h1 {
-      margin-top: 0;
+    h1 { margin-top: 0; }
+    .avatar-row {
+      display:flex;
+      gap:1rem;
+      align-items:center;
+      margin-bottom:1rem;
     }
+    .avatar {
+      width:96px;
+      height:96px;
+      border-radius:50%;
+      object-fit:cover;
+      background:#e9edf2;
+      border:2px solid #fff;
+      box-shadow:0 1px 4px rgba(0,0,0,.12);
+      cursor:pointer;
+    }
+    .file-controls { display:flex; flex-direction:column; gap:.5rem; }
+    .bio { white-space:pre-wrap; margin-top:.5rem; color:#333; }
+    .muted { color:#666; font-size:.9rem; }
+    button { cursor:pointer; padding:.45rem .75rem; border-radius:6px; border:1px solid #d0d6de; background:#fff; }
+    .btn-danger { background:#fff0f0; border-color:#f5c2c2; }
+    input[type="file"] { display:none; }
   </style>
 </head>
 <body>
   <div class="profile-card">
     <h1>Ваш профиль</h1>
+
+    <div class="avatar-row">
+      <img id="avatarImg" class="avatar" alt="Аватар" src="/static/images/avatar-default.png" />
+      <div class="file-controls">
+        <label>
+          <button id="btnChoose">Загрузить / изменить аватар</button>
+          <input id="avatarInput" type="file" accept="image/*">
+        </label>
+        <div>
+          <button id="btnRemove" class="btn-danger">Удалить аватар</button>
+        </div>
+        <div id="uploadStatus" class="muted"></div>
+      </div>
+    </div>
+
     <div id="profileContent">Загрузка...</div>
+
+    <hr>
+    <h3>Био</h3>
+    <div id="bioBlock" class="bio muted">Загрузка...</div>
   </div>
 
   <script>
+    function escapeHtml(s) {
+      if (s === null || s === undefined) return "";
+      return String(s)
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;')
+        .replaceAll("'",'&#39;');
+    }
+
     async function loadProfile() {
       try {
         const res = await fetch("/api/users/me", { credentials: "include" });
         if (!res.ok) throw new Error("Ошибка HTTP " + res.status);
         const user = await res.json();
 
+        const avatarUrl = user.avatar && user.avatar !== "" ? user.avatar : "/static/images/avatar-default.png";
+        document.getElementById("avatarImg").src = avatarUrl;
+
         document.getElementById("profileContent").innerHTML = `
-          <p><b>Имя:</b> ${user.name}</p>
-          <p><b>Email:</b> ${user.email}</p>
-          <p><b>Дата регистрации:</b> ${user.created_at || "—"}</p>
+          <p><b>Имя:</b> ${escapeHtml(user.name || "—")}</p>
+          <p><b>Email:</b> ${escapeHtml(user.email || "—")}</p>
         `;
+
+        document.getElementById("bioBlock").textContent = user.description || "—";
       } catch (err) {
         console.error("Ошибка загрузки профиля:", err);
         document.getElementById("profileContent").innerHTML =
           "<p>Не удалось загрузить данные профиля</p>";
+        document.getElementById("bioBlock").textContent = "—";
       }
     }
+
+    const avatarInput = document.getElementById("avatarInput");
+    const uploadStatus = document.getElementById("uploadStatus");
+
+    avatarInput.addEventListener('change', async (evt) => {
+      const file = evt.target.files[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        uploadStatus.textContent = "Пожалуйста, выберите изображение.";
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        uploadStatus.textContent = "Файл слишком большой (макс 5 MB).";
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => { document.getElementById("avatarImg").src = reader.result; };
+      reader.readAsDataURL(file);
+
+      uploadStatus.textContent = "Загрузка…";
+      const form = new FormData();
+      form.append('avatar', file);
+
+      try {
+        const resp = await fetch('/api/users/me/avatar', {
+          method: 'POST',
+          credentials: 'include',
+          body: form
+        });
+        if (!resp.ok) {
+          const text = await resp.text();
+          throw new Error(`Ошибка сервера ${resp.status}: ${text}`);
+        }
+        const data = await resp.json();
+        if (data.avatar) {
+          document.getElementById("avatarImg").src = data.avatar;
+          uploadStatus.textContent = "Аватар обновлён.";
+        } else {
+          uploadStatus.textContent = "Аватар загружен, но сервер не вернул URL.";
+        }
+      } catch (err) {
+        console.error(err);
+        uploadStatus.textContent = "Ошибка при загрузке аватара.";
+        loadProfile(); // вернуть прежний аватар, если нужно
+      } finally {
+        avatarInput.value = "";
+        setTimeout(()=>uploadStatus.textContent="", 3000);
+      }
+    });
+
+    document.getElementById("btnRemove").addEventListener('click', async () => {
+      if (!confirm("Удалить аватар?")) return;
+      uploadStatus.textContent = "Удаляется…";
+      try {
+        const resp = await fetch('/api/users/me/avatar', {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+        if (!resp.ok) throw new Error("Ошибка сервера " + resp.status);
+        const data = await resp.json();
+        const newAvatar = (data.avatar && data.avatar !== "") ? data.avatar : "/static/images/avatar-default.png";
+        document.getElementById("avatarImg").src = newAvatar;
+        uploadStatus.textContent = "Аватар удалён.";
+      } catch (err) {
+        console.error(err);
+        uploadStatus.textContent = "Ошибка при удалении аватара.";
+      } finally {
+        setTimeout(()=>uploadStatus.textContent="", 2500);
+      }
+    });
+
+    // клик по картинке — открыть диалог выбора файла
+    document.getElementById("avatarImg").addEventListener('click', () => avatarInput.click());
+    document.getElementById("btnChoose").addEventListener('click', () => avatarInput.click());
 
     loadProfile();
   </script>
