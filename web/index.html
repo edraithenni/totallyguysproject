@@ -61,12 +61,13 @@
     .card img { width: 100%; height: 300px; object-fit: cover; }
     .card-body { padding: .8rem; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
     .btn { padding: .4rem .8rem; border-radius: 6px; background: #584fdb; color: white; text-align: center; cursor: pointer; }
-    .modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: none; align-items: center; justify-content: center; z-index: 10; }
-    .modal-content { background: white; padding: 1rem; max-width: 500px; width: 90%; border-radius: 8px; box-shadow: 0 5px 20px rgba(0,0,0,.2); }
-    .modal-close { float: right; cursor: pointer; font-weight: bold; color: #666; }
-    form { display: flex; flex-direction: column; gap: .8rem; margin-top: 1rem; }
-    form input { padding: .6rem; border-radius: 6px; border: 1px solid #ccc; }
-    form button { padding: .6rem; border: none; border-radius: 6px; background: #584fdb; color: white; cursor: pointer; }
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: none; align-items: center; justify-content: center; z-index: 10; border-radius: 0; color:#4FF6FE}
+    .modal-content { background: #0000A0; padding: 1rem; max-width: 500px; width: 90%; border-radius: 0; box-shadow: 0 5px 20px rgba(0,0,0,.2); outline: 2px solid #4FF6FE; color: #4FF6FE }
+    .modal-close { float: right; cursor: pointer; font-weight: bold; color: #4FF6FE; border-radius: 0,}
+    form { display: flex; flex-direction: column; gap: .8rem; margin-top: 1rem; color: #4FF6FE }
+    form input { padding: .6rem; border-radius: 0; border: 1px solid #4FF6FE; background: #4FF6FE; }
+    form button { padding: .6rem; border: none; border-radius: 0; background: #584fdb; color: #4FF6FE; cursor: pointer;  }
+    
   </style>
 </head>
 <body>
@@ -75,8 +76,8 @@
     <nav>
       <button id="btnLogin" class="primary">Sign in</button>
       <button id="btnRegister" class="secondary">Sign up</button>
-      <button id="btnProfile" class="secondary" style="display:none;">Профиль</button>
-      <button id="btnLogout" class="secondary" style="display:none;">Выйти</button>
+      <button id="btnProfile" class="secondary" style="display:none;">Profile</button>
+      <button id="btnLogout" class="secondary" style="display:none;">Log out</button>
     </nav>
   </header>
 
@@ -122,11 +123,11 @@ async function api(url, method='GET', body=null) {
 // --- AUTH UI ---
 document.getElementById('btnLogin').onclick = () => {
   openModal(`
-    <h2>Вход</h2>
+    <h2>Sign in</h2>
     <form id="loginForm">
       <input type="email" name="email" placeholder="Email" required>
-      <input type="password" name="password" placeholder="Пароль" required>
-      <button>Войти</button>
+      <input type="password" name="password" placeholder="Password" required>
+      <button>Continue</button>
     </form>
   `);
   document.getElementById('loginForm').onsubmit = async e => {
@@ -134,7 +135,7 @@ document.getElementById('btnLogin').onclick = () => {
     const f = e.target;
     try {
       await api('/api/auth/login','POST',{ email:f.email.value, password:f.password.value });
-      alert('Успешный вход');
+      alert('succesfully logged in');
       modal.style.display='none';
       setAuthUI(true);
     } catch(err){ alert(err.message); }
