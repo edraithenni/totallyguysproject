@@ -47,38 +47,42 @@
       margin-left: .5rem; padding: .4rem .8rem; border: none;
       border-radius: 6px; cursor: pointer;
     }
-    nav button.primary { background: #3182ce; color: white; }
-    nav button.secondary { background: #4a5568; color: white; }
+    nav button.primary { background: #584fdb; color: #8dd9ff;border-radius: 0; border: 2px solid #ffc659;
+  outline: 2px solid #fb5255;
+  outline-offset: 0; font-family: "So Bad", sans-serif;}
+    nav button.secondary { background: #584fdb; color: #8dd9ff;border-radius: 0; border: 2px solid #ffc659;
+  outline: 2px solid #fb5255;  
+  outline-offset: 0; font-family: "So Bad", sans-serif; }
     .search-box { max-width: 600px; margin: 2rem auto; display: flex; gap: .5rem; }
-    .search-box input { flex: 1; padding: .6rem 1rem; border-radius: 8px; border: 1px solid #ccc; font-size: 1rem; background-color: #ffc659; }
-    .search-box button { padding: .6rem 1rem; border: none; background: #584fdb; color: white; border-radius: 8px; cursor: pointer; }
+    .search-box input { flex: 1; padding: .6rem 1rem; border-radius: 0;caret-color: #8dd9ff ;  color: #8dd9ff ;font-family: "So Bad", sans-serif;  border: 1px solid #ccc; font-size: 1rem; background-color: #cd77ff ; }
+    .search-box button { padding: .6rem 1rem; border: none;font-family: "So Bad", sans-serif; background: #584fdb; color: #8dd9ff; border-radius: 0; cursor: pointer; }
     .results { display: grid; grid-template-columns: repeat(auto-fill,minmax(200px,1fr)); gap: 1rem; max-width: 1200px; margin: 0 auto; padding: 1rem; }
     .card { background: #ffc659; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); overflow: hidden; display: flex; flex-direction: column; }
     .card img { width: 100%; height: 300px; object-fit: cover; }
     .card-body { padding: .8rem; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
-    .btn { padding: .4rem .8rem; border-radius: 6px; background: #3182ce; color: white; text-align: center; cursor: pointer; }
+    .btn { padding: .4rem .8rem; border-radius: 6px; background: #584fdb; color: white; text-align: center; cursor: pointer; }
     .modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: none; align-items: center; justify-content: center; z-index: 10; }
     .modal-content { background: white; padding: 1rem; max-width: 500px; width: 90%; border-radius: 8px; box-shadow: 0 5px 20px rgba(0,0,0,.2); }
     .modal-close { float: right; cursor: pointer; font-weight: bold; color: #666; }
     form { display: flex; flex-direction: column; gap: .8rem; margin-top: 1rem; }
     form input { padding: .6rem; border-radius: 6px; border: 1px solid #ccc; }
-    form button { padding: .6rem; border: none; border-radius: 6px; background: #3182ce; color: white; cursor: pointer; }
+    form button { padding: .6rem; border: none; border-radius: 6px; background: #584fdb; color: white; cursor: pointer; }
   </style>
 </head>
 <body>
   <header>
     <h1>Totally cats</h1>
     <nav>
-      <button id="btnLogin" class="primary">Войти</button>
-      <button id="btnRegister" class="secondary">Регистрация</button>
+      <button id="btnLogin" class="primary">Sign in</button>
+      <button id="btnRegister" class="secondary">Sign up</button>
       <button id="btnProfile" class="secondary" style="display:none;">Профиль</button>
       <button id="btnLogout" class="secondary" style="display:none;">Выйти</button>
     </nav>
   </header>
 
   <div class="search-box">
-    <input id="query" type="text" placeholder="Введите название фильма...">
-    <button id="searchBtn">Поиск</button>
+    <input id="query" type="text" placeholder="Enter movie title...">
+    <button id="searchBtn">Search</button>
   </div>
 
   <div id="results" class="results"></div>
