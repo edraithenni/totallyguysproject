@@ -508,7 +508,7 @@ func DeleteUser(c *gin.Context, db *gorm.DB) {
 	}
 
 	// Clear the authentication cookie
-	c.SetCookie("token", "", -1, "/", "", true, true)
+	c.SetCookie("token", "", -1, "/", "", false, true)
 
 	c.JSON(http.StatusOK, gin.H{"message": "user deleted"})
 }

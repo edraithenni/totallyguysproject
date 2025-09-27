@@ -6,11 +6,12 @@ import (
 	"totallyguysproject/internal/models"
 	"totallyguysproject/internal/utils"
 
+	"net/mail"
+	"strings"
+	"unicode/utf8"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-	"net/mail"
-    "strings"
-    "unicode/utf8"
 )
 
 // POST /api/auth/register
@@ -27,26 +28,26 @@ func Register(c *gin.Context, db *gorm.DB) {
 	}
 
 	// Trim spaces
-    req.Name = strings.TrimSpace(req.Name)
-    req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+	req.Name = strings.TrimSpace(req.Name)
+	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 
-    // validate email
-    if _, err := mail.ParseAddress(req.Email); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "invalid email format"})
-        return
-    }
+	// validate email
+	if _, err := mail.ParseAddress(req.Email); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid email format"})
+		return
+	}
 
-    // validate password
-    if utf8.RuneCountInString(req.Password) < 6 {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "password must be at least 6 characters"})
-        return
-    }
+	// validate password
+	if utf8.RuneCountInString(req.Password) < 6 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "password must be at least 6 characters"})
+		return
+	}
 
-    // validate name
-    if req.Name == "" {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "name cannot be empty"})
-        return
-    }
+	// validate name
+	if req.Name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name cannot be empty"})
+		return
+	}
 
 	// exists - > error
 	var exists int64
@@ -77,22 +78,22 @@ func Register(c *gin.Context, db *gorm.DB) {
 
 	// default playlists
 	defaultPlaylists := []struct {
-        Name  string
-        Cover string
-    }{
-        {"watch-later", "/static/playlists/watch-later.png"},
-        {"watched", "/static/playlists/watched.png"},
-        {"liked", "/static/playlists/liked.png"},
-    }
+		Name  string
+		Cover string
+	}{
+		{"watch-later", "/static/playlists/watch-later.png"},
+		{"watched", "/static/playlists/watched.png"},
+		{"liked", "/static/playlists/liked.png"},
+	}
 
-    for _, p := range defaultPlaylists {
-        db.Create(&models.Playlist{
-            Name:    p.Name,
-            OwnerID: user.ID,
-            Cover:   p.Cover,
-        })
-    }
-    // verification through fmt, l8r with email
+	for _, p := range defaultPlaylists {
+		db.Create(&models.Playlist{
+			Name:    p.Name,
+			OwnerID: user.ID,
+			Cover:   p.Cover,
+		})
+	}
+	// verification through fmt, l8r with email
 	fmt.Printf("Verification code for %s: %s\n", user.Email, code)
 
 	c.JSON(http.StatusOK, gin.H{
@@ -105,67 +106,67 @@ func Register(c *gin.Context, db *gorm.DB) {
 func Login(c *gin.Context, db *gorm.DB) {
 
 	if tokenCookie, err := c.Cookie("token"); err == nil && tokenCookie != "" {
-        _, err := utils.ParseJWT(tokenCookie)
-        if err == nil {
-            // token is valid -> prohibit login
-            c.JSON(http.StatusBadRequest, gin.H{
-                "error": "already logged in",
-            })
-            return
-        }
-    }
+		_, err := utils.ParseJWT(tokenCookie)
+		if err == nil {
+			// token is valid -> prohibit login
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "already logged in",
+			})
+			return
+		}
+	}
 
-    var req struct {
-        Email    string `json:"email"`
-        Password string `json:"password"`
-    }
-    if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
-        return
-    }
+	var req struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
 
-    var user models.User
-    if err := db.Where("email = ?", req.Email).First(&user).Error; err != nil {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
-        return
-    }
+	var user models.User
+	if err := db.Where("email = ?", req.Email).First(&user).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		return
+	}
 
-    if !utils.CheckPasswordHash(req.Password, user.Password) {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "wrong password"})
-        return
-    }
+	if !utils.CheckPasswordHash(req.Password, user.Password) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "wrong password"})
+		return
+	}
 
-    if !user.Verified {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "email not verified"})
-        return
-    }
+	if !user.Verified {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "email not verified"})
+		return
+	}
 
-    token, err := utils.GenerateJWT(user.ID, user.Email)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
-        return
-    }
+	token, err := utils.GenerateJWT(user.ID, user.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		return
+	}
 
-    c.SetCookie("token", token, 3600*24, "/", "", false, true)
-    c.JSON(http.StatusOK, gin.H{
-        "message": "login successful",
-        "token":   token,
-	  //return token if client doesnt support cookies
-    })
+	c.SetCookie("token", token, 3600*24, "/", "", false, true)
+	c.JSON(http.StatusOK, gin.H{
+		"message": "login successful",
+		"token":   token,
+		//return token if client doesnt support cookies
+	})
 }
 
 // POST /api/auth/logout
 func Logout(c *gin.Context) {
 	//logged out -> prohibit logout
 	tokenCookie, err := c.Cookie("token")
-    if err != nil || tokenCookie == "" {
-        c.JSON(http.StatusBadRequest, gin.H{
-            "error": "not logged in",
-        })
-        return
-    }
-    //delete token
-	c.SetCookie("token", "", -1, "/", "", true, true)
+	if err != nil || tokenCookie == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "not logged in",
+		})
+		return
+	}
+	//delete token
+	c.SetCookie("token", "", -1, "/", "", false, true)
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Logged out successfully",
