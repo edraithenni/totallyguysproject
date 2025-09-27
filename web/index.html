@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Movie App</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link href="https://fonts.cdnfonts.com/css/so-bad" rel="stylesheet">
+  <style>
+    body { font-family: "So Bad", sans-serif; margin: 0; background: #000000; color: #333; }
+    header {
+        background: url('src/hat.png') repeat center top;
+        height: 120px;
+        background-size: auto;
+       
+        display: flex;
+        align-items: center;
+      
+    }
+    
+    header h1 {
+      font-family: "So Bad", sans-serif;
+      font-size: 3.5rem; 
+      letter-spacing: 0.5px;
+      margin: 0;
+      padding-left: 15px;
+      color: #584fdb;
+      text-shadow: 
+        -1px -1px 0 #ffc659,
+        1px -1px 0 #ffc659,
+        -1px  1px 0 #ffc659,
+        1px  1px 0 #ffc659,
+        -2px -2px 0 #fb5255,
+        2px -2px 0 #fb5255,
+        -2px  2px 0 #fb5255,
+        2px  2px 0 #fb5255;
+      margin: 0;
+      
+       
+      
+    }
+    header nav {
+      margin-left: auto;
+      display: flex;
+      gap: .5rem; 
+  }
+    nav button {
+      margin-left: .5rem; padding: .4rem .8rem; border: none;
+      border-radius: 6px; cursor: pointer;
+    }
+    nav button.primary { background: #584fdb; color: #8dd9ff;border-radius: 0; border: 2px solid #ffc659;
+  outline: 2px solid #fb5255;
+  outline-offset: 0; font-family: "So Bad", sans-serif;}
+    nav button.secondary { background: #584fdb; color: #8dd9ff;border-radius: 0; border: 2px solid #ffc659;
+  outline: 2px solid #fb5255;  
+  outline-offset: 0; font-family: "So Bad", sans-serif; }
+    .search-box { max-width: 600px; margin: 2rem auto; display: flex; gap: .5rem; }
+    .search-box input { flex: 1; padding: .6rem 1rem; border-radius: 0;caret-color: #8dd9ff ;  color: #8dd9ff ;font-family: "So Bad", sans-serif;  border: 1px solid #ccc; font-size: 1rem; background-color: #cd77ff ; }
+    .search-box button { padding: .6rem 1rem; border: none;font-family: "So Bad", sans-serif; background: #584fdb; color: #8dd9ff; border-radius: 0; cursor: pointer; }
+    .results { display: grid; grid-template-columns: repeat(auto-fill,minmax(200px,1fr)); gap: 1rem; max-width: 1200px; margin: 0 auto; padding: 1rem; }
+    .card { background: #8dd9ff ; border-radius: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.1); overflow: hidden; display: flex; flex-direction: column; color: #cd77ff; outline: 2px solid  #ce3ed0   }
+    .card img { width: 100%; height: 300px; object-fit: cover; }
+    .card-body { padding: .8rem; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+    .btn { padding: .4rem .8rem; border-radius: 6px; background: #584fdb; color: white; text-align: center; cursor: pointer; }
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: none; align-items: center; justify-content: center; z-index: 10; border-radius: 0; color:#4FF6FE}
+    .modal-content { background: #0000A0; padding: 1rem; max-width: 500px; width: 90%; border-radius: 0; box-shadow: 0 5px 20px rgba(0,0,0,.2); outline: 2px solid #4FF6FE; color: #ce3ed0 }
+    .modal-close { float: right; cursor: pointer; font-weight: bold; color: #4FF6FE; border-radius: 0,}
+    form { display: flex; flex-direction: column; gap: .8rem; margin-top: 1rem; color: #4FF6FE }
+    form input { padding: .6rem; border-radius: 0; border: 1px solid #4FF6FE; background: #4FF6FE;}
+    form button { padding: .6rem; border: none; border-radius: 0; background: #008080ff; color: #000000; cursor: pointer; font-family: "So Bad", sans-serif  }
+    
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Totally cats</h1>
+    <nav>
+      <button id="btnLogin" class="primary">Sign in</button>
+      <button id="btnRegister" class="secondary">Sign up</button>
+      <button id="btnProfile" class="secondary" style="display:none;">Profile</button>
+      <button id="btnLogout" class="secondary" style="display:none;">Log out</button>
+    </nav>
+  </header>
+
+  <div class="search-box">
+    <input id="query" type="text" placeholder="Enter movie title...">
+    <button id="searchBtn">Search</button>
+  </div>
+
+  <div id="results" class="results"></div>
+
+  <!-- universal modal -->
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <span id="modalClose" class="modal-close">✖</span>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+<script>
+const modal = document.getElementById('modal');
+const modalBody = document.getElementById('modalBody');
+const modalClose = document.getElementById('modalClose');
+modalClose.onclick = () => modal.style.display = 'none';
+modal.onclick = e => { if (e.target === modal) modal.style.display = 'none'; };
+
+function openModal(html) {
+  modalBody.innerHTML = html;
+  modal.style.display = 'flex';
+}
+
+async function api(url, method='GET', body=null) {
+  const opts = { method, headers: {} };
+  if (body) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch(url, opts);
+  const data = await res.json().catch(()=>({}));
+  if (!res.ok) throw new Error(data.error || 'Ошибка');
+  return data;
+}
+
+// --- AUTH UI ---
+document.getElementById('btnLogin').onclick = () => {
+  openModal(`
+    <h2>Sign in</h2>
+    <form id="loginForm">
+      <input type="email" name="email" placeholder="Email" required>
+      <input type="password" name="password" placeholder="Password" required>
+      <button>Continue</button>
+    </form>
+  `);
+  document.getElementById('loginForm').onsubmit = async e => {
+    e.preventDefault();
+    const f = e.target;
+    try {
+      await api('/api/auth/login','POST',{ email:f.email.value, password:f.password.value });
+      alert('succesfully logged in');
+      modal.style.display='none';
+      setAuthUI(true);
+    } catch(err){ alert(err.message); }
+  };
+};
+
+document.getElementById('btnRegister').onclick = () => {
+  window.location.href = 'auth.html';
+};
+
+document.getElementById('btnProfile').onclick = async () => {
+   window.location.href = "profile.html";
+};
+
+document.getElementById('btnLogout').onclick = async () => {
+  try {
+    await api('/api/auth/logout','POST');
+    alert('Вы вышли');
+    setAuthUI(false);
+  } catch(err){ alert(err.message); }
+};
+
+function setAuthUI(loggedIn) {
+  document.getElementById('btnLogin').style.display = loggedIn?'none':'inline-block';
+  document.getElementById('btnRegister').style.display = loggedIn?'none':'inline-block';
+  document.getElementById('btnProfile').style.display = loggedIn?'inline-block':'none';
+  document.getElementById('btnLogout').style.display = loggedIn?'inline-block':'none';
+}
+
+// --- MOVIE SEARCH ---
+const resultsEl = document.getElementById('results');
+const queryEl = document.getElementById('query');
+document.getElementById('searchBtn').onclick = searchMovies;
+queryEl.addEventListener('keypress', e => { if (e.key==='Enter') searchMovies(); });
+
+async function searchMovies() {
+  const q = queryEl.value.trim();
+  if (!q) return;
+  resultsEl.innerHTML = '<p>Загрузка...</p>';
+  try {
+    const data = await api(`/api/movies/search?title=${encodeURIComponent(q)}`);
+    renderResults(data.Search || []);
+  } catch(err) {
+    resultsEl.innerHTML = '<p>Ошибка поиска</p>';
+  }
+}
+
+function renderResults(movies) {
+  if (!movies.length) { resultsEl.innerHTML='<p>Ничего не найдено</p>'; return; }
+  resultsEl.innerHTML = movies.map(movie => `
+    <div class="card" onclick="showDetails('${movie.omdb_id}')" style="cursor:pointer;">
+      ${movie.poster && movie.poster!=='N/A' ? `<img src="${movie.poster}">` :
+        '<div style="height:300px; background:#eee; display:flex;align-items:center;justify-content:center;">Нет изображения</div>'}
+      <div class="card-body">
+        <div class="card-title">${movie.title}</div>
+        <div>${movie.year||'—'}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+
+async function showDetails(id) {
+   window.location.href = `details.html?id=${id}`;
+}
+
+
+(async function checkLogin() {
+  try {
+    await api('/api/users/me');
+    setAuthUI(true);
+  } catch { setAuthUI(false); }
+})();
+</script>
+</body>
+</html>
