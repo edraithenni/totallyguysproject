@@ -18,7 +18,7 @@ func NewServer(db *gorm.DB) *Server {
 	// web static
 	frontendPath := filepath.Join("..", "..", "web")
 	r.Static("/static", frontendPath)
-	r.Static("/uploads", "./uploads")
+	r.Static("/uploads", "../../uploads")
 
 	// API
 	api := r.Group("/api")

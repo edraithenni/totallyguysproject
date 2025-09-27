@@ -86,7 +86,7 @@
         if (!res.ok) throw new Error("Ошибка HTTP " + res.status);
         const user = await res.json();
 
-        const avatarUrl = user.avatar && user.avatar !== "" ? user.avatar : "/static/images/avatar-default.png";
+        const avatarUrl = user.avatar && user.avatar !== "" ? user.avatar : "/static/src/default_pfp.png";
         document.getElementById("avatarImg").src = avatarUrl;
 
         document.getElementById("profileContent").innerHTML = `
@@ -146,7 +146,7 @@
       } catch (err) {
         console.error(err);
         uploadStatus.textContent = "Ошибка при загрузке аватара.";
-        loadProfile(); // вернуть прежний аватар, если нужно
+        loadProfile(); 
       } finally {
         avatarInput.value = "";
         setTimeout(()=>uploadStatus.textContent="", 3000);
@@ -163,7 +163,7 @@
         });
         if (!resp.ok) throw new Error("Ошибка сервера " + resp.status);
         const data = await resp.json();
-        const newAvatar = (data.avatar && data.avatar !== "") ? data.avatar : "/static/images/avatar-default.png";
+        const newAvatar = (data.avatar && data.avatar !== "") ? data.avatar : "/static/src/default_pfp.png";
         document.getElementById("avatarImg").src = newAvatar;
         uploadStatus.textContent = "Аватар удалён.";
       } catch (err) {
@@ -174,7 +174,6 @@
       }
     });
 
-    // клик по картинке — открыть диалог выбора файла
     document.getElementById("avatarImg").addEventListener('click', () => avatarInput.click());
     document.getElementById("btnChoose").addEventListener('click', () => avatarInput.click());
 
