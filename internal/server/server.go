@@ -57,7 +57,7 @@ func NewServer(db *gorm.DB) *Server {
 				userAuth.GET("/me/following", func(c *gin.Context) { handlers.GetMyFollowing(c, db) })
 				userAuth.POST("/:id/follow", func(c *gin.Context) { handlers.FollowUser(c, db) })
 				userAuth.DELETE("/:id/follow", func(c *gin.Context) { handlers.UnfollowUser(c, db) })
-				userAuth.DELETE("/:id", func(c *gin.Context) { handlers.DeleteUser(c, db) })
+				userAuth.DELETE("/me", func(c *gin.Context) { handlers.DeleteUser(c, db) })
 			}
 		}
 

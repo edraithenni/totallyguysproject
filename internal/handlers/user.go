@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 	"totallyguysproject/internal/models"
 	"totallyguysproject/internal/utils"
@@ -420,31 +419,31 @@ func CreateUser(c *gin.Context, db *gorm.DB) {
 }
 
 func DeleteUser(c *gin.Context, db *gorm.DB) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+	uid, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
 	var user models.User
-	if err := db.First(&user, uint(id)).Error; err != nil {
+	if err := db.First(&user, uid.(uint)).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}
 
-	//delete user related data
-	db.Where("owner_id = ?", user.ID).Delete(&models.Playlist{})
-	db.Where("user_id = ?", user.ID).Delete(&models.Review{})
-	db.Where("follower_id = ? OR followed_id = ?", user.ID, user.ID).Delete(&models.Follow{})
-	db.Where("user_id = ?", user.ID).Delete(&models.Comment{})
+	// Delete related data: playlists, reviews, follows, comments
+	// Use Unscoped to permanently delete if using soft deletes
+	db.Unscoped().Where("owner_id = ?", user.ID).Delete(&models.Playlist{})
+	db.Unscoped().Where("user_id = ?", user.ID).Delete(&models.Review{})
+	db.Unscoped().Where("follower_id = ? OR followed_id = ?", user.ID, user.ID).Delete(&models.Follow{})
+	db.Unscoped().Where("user_id = ?", user.ID).Delete(&models.Comment{})
 
-	if err := db.Delete(&user).Error; err != nil {
+	if err := db.Unscoped().Delete(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete user"})
 		return
 	}
 
-	// Clear auth cookie if the deleted user is the current user
+	// Clear the authentication cookie
 	c.SetCookie("token", "", -1, "/", "", true, true)
 
 	c.JSON(http.StatusOK, gin.H{"message": "user deleted"})

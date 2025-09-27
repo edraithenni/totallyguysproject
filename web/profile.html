@@ -63,7 +63,7 @@
       if (!confirm("Вы уверены, что хотите удалить аккаунт? Это действие необратимо!")) return;
 
       try {
-        const res = await fetch(`/api/users/${window.currentUserId}`, {
+        const res = await fetch(`/api/users/me`, {
           method: "DELETE",
           credentials: "include"
         });
