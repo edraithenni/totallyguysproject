@@ -22,11 +22,10 @@ This backend project is part of a web application that allows users to search fo
 - **Admin:** All user capabilities, plus the ability to edit movie details, update descriptions, and delete reviews or comments made by any user.
   
 ## 4. Database Schema
-### Use Case Diagram
 ![Use Case Diagram](sql/databaseTotallyGuys.png)
 
 ## 5. API
-The backend API endpoints and their documentation are defined in the `server.go` file located in the `internal/server` directory.
+The backend API endpoints are defined in the `server.go` file located in the `internal/server` directory.
 
 
 # totallyweb
