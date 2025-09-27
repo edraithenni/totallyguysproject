@@ -8,6 +8,7 @@ report 2/4:
 
 ## 1. Project Description
 This backend project is part of a web application that allows users to search for movies, create and manage playlists, leave reviews, participate in discussions, and interact socially around movies. Users can follow each other, comment on reviews, and build their own collections of favorite or watch-later movies. Admins have additional privileges to manage content across the platform.
+**Movie data is fetched from the OMDb API**, which provides movie details such as title, year, poster, plot, and ratings.
 
 ## 2. Technology Stack
 - **Programming Language:** Go  
