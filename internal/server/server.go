@@ -16,7 +16,7 @@ func NewServer(db *gorm.DB) *Server {
 	r := gin.Default()
 
 	// web static
-	frontendPath := filepath.Join("..", "..", "web")
+	frontendPath := filepath.Join("..", "..", "..", "totallyweb", "web")
 	r.Static("/static", frontendPath)
 	r.Static("/uploads", "../../uploads")
 
