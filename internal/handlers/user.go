@@ -3,6 +3,8 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 	"totallyguysproject/internal/models"
 	"totallyguysproject/internal/utils"
@@ -316,6 +318,20 @@ func SearchUsers(c *gin.Context, db *gorm.DB) {
 // @Failure 401 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /users/me/avatar [post]
+func deleteAvatarFile(avatarURL string) error {
+	if avatarURL == "" {
+		return nil
+	}
+
+	filePath := "../../" + strings.TrimPrefix(avatarURL, "/")
+
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return nil
+	}
+
+	return os.Remove(filePath)
+}
+
 func UploadAvatar(c *gin.Context, db *gorm.DB) {
 	userID, ok := c.Get("userID")
 	if !ok {
@@ -329,9 +345,18 @@ func UploadAvatar(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
+	// create an individual user directory
+	basePath := "../../uploads/avatars"
+	userFolder := fmt.Sprintf("%s/%v", basePath, userID)
+
+	if err := os.MkdirAll(userFolder, 0755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user folder"})
+		return
+	}
+
 	// gen unique filename (userID + timestamp)
-	filename := fmt.Sprintf("user_%v_%d_%s", userID, time.Now().Unix(), file.Filename)
-	savePath := "./uploads/" + filename
+	filename := fmt.Sprintf("%d_%s", time.Now().Unix(), file.Filename)
+	savePath := userFolder + "/" + filename
 
 	// save to uploads
 	if err := c.SaveUploadedFile(file, savePath); err != nil {
@@ -340,14 +365,53 @@ func UploadAvatar(c *gin.Context, db *gorm.DB) {
 	}
 
 	// for frontend url
-	avatarURL := "/uploads/" + filename
+	avatarURL := fmt.Sprintf("/uploads/avatars/%v/%s", userID, filename)
+
+	var user models.User
+	if err := db.First(&user, userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "user not found"})
+		return
+	}
 
 	if err := db.Model(&models.User{}).Where("id = ?", userID).Update("avatar", avatarURL).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update avatar"})
 		return
 	}
 
+	if user.Avatar != "" {
+		go deleteAvatarFile(user.Avatar)
+	}
+
 	c.JSON(http.StatusOK, gin.H{"avatar": avatarURL})
+}
+
+func DeleteAvatar(c *gin.Context, db *gorm.DB) {
+	userID, ok := c.Get("userID")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var user models.User
+	if err := db.First(&user, userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "user not found"})
+		return
+	}
+
+	oldAvatar := user.Avatar
+
+	if err := db.Model(&user).Update("avatar", "").Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update avatar"})
+		return
+	}
+
+	if oldAvatar != "" {
+		if err := deleteAvatarFile(oldAvatar); err != nil {
+			fmt.Printf("Failed to delete avatar file: %v\n", err)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"avatar": ""})
 }
 
 // @Summary Create user (admin)

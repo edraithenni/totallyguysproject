@@ -1,34 +1,27 @@
-# Binary files (executables)
+
 *.exe
 *.out
 *.app
 
-# Binaries directory (commonly used in Go)
 bin/
 dist/
 
-# Compilation cache and temporary files
 *.test
 *.prof
 *.trace
 
-# Dependencies directory (similar to node_modules for Go)
 vendor/    # if using vendor mode
 
-# Auto-generated files
 coverage.html
 coverage.out
 
-# IDE files
 .idea/
 .vscode/
 *.swp
 *.swo
 
-# System files
 .DS_Store
 Thumbs.db
 
-# Go modules (sometimes temporary files are created)
 go.work
 go.work.sum

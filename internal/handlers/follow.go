@@ -11,12 +11,12 @@ import (
 
 // POST /users/:id/follow
 func FollowUser(c *gin.Context, db *gorm.DB) {
-	uidAny, exists := c.Get("userID")
+	uid, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	myID := uidAny.(uint)
+	myID := uid.(uint)
 
 	targetID64, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -55,12 +55,12 @@ func FollowUser(c *gin.Context, db *gorm.DB) {
 
 // DELETE /users/:id/follow
 func UnfollowUser(c *gin.Context, db *gorm.DB) {
-	uidAny, exists := c.Get("userID")
+	uid, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	myID := uidAny.(uint)
+	myID := uid.(uint)
 
 	targetID64, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -113,12 +113,12 @@ func GetFollowingByID(c *gin.Context, db *gorm.DB) {
 
 // GET /users/me/followers
 func GetMyFollowers(c *gin.Context, db *gorm.DB) {
-	uidAny, exists := c.Get("userID")
+	uid, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	userID := uidAny.(uint)
+	userID := uid.(uint)
 
 	var followers []models.User
 	db.Joins("JOIN follows ON follows.follower_id = users.id").
@@ -130,12 +130,12 @@ func GetMyFollowers(c *gin.Context, db *gorm.DB) {
 
 // GET /users/me/following
 func GetMyFollowing(c *gin.Context, db *gorm.DB) {
-	uidAny, exists := c.Get("userID")
+	uid, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	userID := uidAny.(uint)
+	userID := uid.(uint)
 
 	var following []models.User
 	db.Joins("JOIN follows ON follows.followed_id = users.id").

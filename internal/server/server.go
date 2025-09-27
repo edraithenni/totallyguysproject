@@ -16,9 +16,9 @@ func NewServer(db *gorm.DB) *Server {
 	r := gin.Default()
 
 	// web static
-	frontendPath := filepath.Join("..", "..", "web")
+	frontendPath := filepath.Join("..", "..", "..", "totallyweb", "web")
 	r.Static("/static", frontendPath)
-	r.Static("/uploads", "./uploads")
+	r.Static("/uploads", "../../uploads")
 
 	// API
 	api := r.Group("/api")
@@ -50,6 +50,7 @@ func NewServer(db *gorm.DB) *Server {
 				userAuth.GET("/me", func(c *gin.Context) { handlers.GetCurrentUser(c, db) })
 				userAuth.PUT("/me", func(c *gin.Context) { handlers.UpdateCurrentUser(c, db) })
 				userAuth.POST("/me/avatar", func(c *gin.Context) { handlers.UploadAvatar(c, db) })
+				userAuth.DELETE("/me/avatar", func(c *gin.Context) { handlers.DeleteAvatar(c, db) })
 				userAuth.GET("/me/playlists", func(c *gin.Context) { handlers.GetMyPlaylists(c, db) })
 
 				// follow/unfollow other users
