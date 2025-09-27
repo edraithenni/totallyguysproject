@@ -164,7 +164,7 @@ func DeletePlaylist(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
-	if err := db.Delete(&playlist).Error; err != nil {
+	if err := db.Unscoped().Delete(&playlist).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete playlist"})
 		return
 	}
@@ -214,7 +214,7 @@ func RemoveMovieFromPlaylist(c *gin.Context, db *gorm.DB) {
         return
     }
 
-    if err := db.Model(&playlist).Association("Movies").Delete(&movie); err != nil {
+    if err := db.Model(&playlist).Association("Movies").Unscoped().Delete(&movie); err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to remove movie"})
         return
     }
@@ -284,7 +284,7 @@ func UnlikeMovie(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
-	if err := db.Model(&playlist).Association("Movies").Delete(&movie); err != nil {
+	if err := db.Model(&playlist).Association("Movies").Unscoped().Delete(&movie); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to unlike movie"})
 		return
 	}
