@@ -28,6 +28,9 @@
   <div class="profile-card">
     <h1>Ваш профиль</h1>
     <div id="profileContent">Загрузка...</div>
+    <button id="deleteBtn" style="margin-top:1.5rem;background:#e74c3c;color:#fff;border:none;padding:0.7em 1.5em;border-radius:5px;cursor:pointer;">
+      Удалить аккаунт
+    </button>
   </div>
 
   <script>
@@ -42,12 +45,36 @@
           <p><b>Email:</b> ${user.email}</p>
           <p><b>Дата регистрации:</b> ${user.created_at || "—"}</p>
         `;
+
+        // Сохраняем id пользователя для удаления
+        window.currentUserId = user.id;
       } catch (err) {
         console.error("Ошибка загрузки профиля:", err);
         document.getElementById("profileContent").innerHTML =
           "<p>Не удалось загрузить данные профиля</p>";
       }
     }
+
+    document.getElementById("deleteBtn").onclick = async function() {
+      if (!window.currentUserId) {
+        alert("Пользователь не загружен");
+        return;
+      }
+      if (!confirm("Вы уверены, что хотите удалить аккаунт? Это действие необратимо!")) return;
+
+      try {
+        const res = await fetch(`/api/users/${window.currentUserId}`, {
+          method: "DELETE",
+          credentials: "include"
+        });
+        if (!res.ok) throw new Error("Ошибка HTTP " + res.status);
+        alert("Аккаунт удалён. До свидания!");
+        localStorage.removeItem("token");
+        window.location.href = "/";
+      } catch (err) {
+        alert("Ошибка удаления: " + err.message);
+      }
+    };
 
     loadProfile();
   </script>
