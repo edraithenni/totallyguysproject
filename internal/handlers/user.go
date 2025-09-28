@@ -203,13 +203,6 @@ func UpdateCurrentUser(c *gin.Context, db *gorm.DB) {
 func GetProfile(c *gin.Context, db *gorm.DB) {
 	id := c.Param("id")
 
-	uid, exists := c.Get("userID")
-	if exists && id == fmt.Sprintf("%v", uid) {
-		// redirecting to /me
-		GetCurrentUser(c, db)
-		return
-	}
-
 	var user models.User
 	if err := db.Preload("Playlists").Preload("Reviews").
 		First(&user, id).Error; err != nil {
