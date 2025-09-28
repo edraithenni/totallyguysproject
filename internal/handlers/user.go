@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 	"totallyguysproject/internal/models"
 	"totallyguysproject/internal/utils"
@@ -323,7 +322,9 @@ func deleteAvatarFile(avatarURL string) error {
 		return nil
 	}
 
-	filePath := "../../" + strings.TrimPrefix(avatarURL, "/")
+	filePath := "../../../totallyweb" + avatarURL
+
+	fmt.Printf("Deleting: %s\n", filePath)
 
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return nil
@@ -331,7 +332,6 @@ func deleteAvatarFile(avatarURL string) error {
 
 	return os.Remove(filePath)
 }
-
 func UploadAvatar(c *gin.Context, db *gorm.DB) {
 	userID, ok := c.Get("userID")
 	if !ok {
