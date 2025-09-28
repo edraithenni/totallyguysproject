@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 	"totallyguysproject/internal/models"
 	"totallyguysproject/internal/utils"
@@ -204,13 +203,6 @@ func UpdateCurrentUser(c *gin.Context, db *gorm.DB) {
 func GetProfile(c *gin.Context, db *gorm.DB) {
 	id := c.Param("id")
 
-	uid, exists := c.Get("userID")
-	if exists && id == fmt.Sprintf("%v", uid) {
-		// redirecting to /me
-		GetCurrentUser(c, db)
-		return
-	}
-
 	var user models.User
 	if err := db.Preload("Playlists").Preload("Reviews").
 		First(&user, id).Error; err != nil {
@@ -323,7 +315,9 @@ func deleteAvatarFile(avatarURL string) error {
 		return nil
 	}
 
-	filePath := "../../" + strings.TrimPrefix(avatarURL, "/")
+	filePath := "../../../totallyweb" + avatarURL
+
+	fmt.Printf("Deleting: %s\n", filePath)
 
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return nil
@@ -331,7 +325,6 @@ func deleteAvatarFile(avatarURL string) error {
 
 	return os.Remove(filePath)
 }
-
 func UploadAvatar(c *gin.Context, db *gorm.DB) {
 	userID, ok := c.Get("userID")
 	if !ok {
@@ -346,7 +339,7 @@ func UploadAvatar(c *gin.Context, db *gorm.DB) {
 	}
 
 	// create an individual user directory
-	basePath := "../totallyweb/uploads/avatars"
+	basePath := "../../../totallyweb/uploads/avatars"
 	userFolder := fmt.Sprintf("%s/%v", basePath, userID)
 
 	if err := os.MkdirAll(userFolder, 0755); err != nil {

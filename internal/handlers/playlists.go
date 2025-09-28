@@ -58,12 +58,12 @@ func GetPlaylist(c *gin.Context, db *gorm.DB) {
 // POST /api/playlists/:id/add
 func AddMovieToPlaylist(c *gin.Context, db *gorm.DB) {
 	//authenticated only
-	uidRaw, ok := c.Get("userID")
+	uid, ok := c.Get("userID")
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	userID := uidRaw.(uint)
+	userID := uid.(uint)
 
 	// parse playlist id from path
 	playlistIDStr := c.Param("id")
@@ -133,12 +133,12 @@ func AddMovieToPlaylist(c *gin.Context, db *gorm.DB) {
 
 // DELETE /api/playlists/:id
 func DeletePlaylist(c *gin.Context, db *gorm.DB) {
-	uidRaw, ok := c.Get("userID")
+	uid, ok := c.Get("userID")
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	userID := uidRaw.(uint)
+	userID := uid.(uint)
 
 	playlistIDStr := c.Param("id")
 	pid64, err := strconv.ParseUint(playlistIDStr, 10, 64)
@@ -174,12 +174,12 @@ func DeletePlaylist(c *gin.Context, db *gorm.DB) {
 
 // DELETE /api/playlists/:id/movies/:movie_id
 func RemoveMovieFromPlaylist(c *gin.Context, db *gorm.DB) {
-    uidRaw, ok := c.Get("userID")
+    uid, ok := c.Get("userID")
     if !ok {
         c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
         return
     }
-    userID := uidRaw.(uint)
+    userID := uid.(uint)
 
     playlistIDStr := c.Param("id")
     pid64, err := strconv.ParseUint(playlistIDStr, 10, 64)
@@ -224,12 +224,12 @@ func RemoveMovieFromPlaylist(c *gin.Context, db *gorm.DB) {
 
 // POST /api/movies/:id/like
 func LikeMovie(c *gin.Context, db *gorm.DB) {
-	uidRaw, ok := c.Get("userID")
+	uid, ok := c.Get("userID")
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	userID := uidRaw.(uint)
+	userID := uid.(uint)
 
 	movieID := c.Param("id")
 
@@ -263,12 +263,12 @@ func LikeMovie(c *gin.Context, db *gorm.DB) {
 
 // DELETE /api/movies/:id/like
 func UnlikeMovie(c *gin.Context, db *gorm.DB) {
-	uidRaw, ok := c.Get("userID")
+	uid, ok := c.Get("userID")
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	userID := uidRaw.(uint)
+	userID := uid.(uint)
 
 	movieID := c.Param("id")
 
