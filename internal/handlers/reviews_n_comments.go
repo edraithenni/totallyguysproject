@@ -57,16 +57,23 @@ func CreateReview(c *gin.Context, db *gorm.DB) {
 
 // GET /api/movies/:id/reviews
 func GetReviewsForMovie(c *gin.Context, db *gorm.DB) {
-	movieID := c.Param("id")
+    movieIDStr := c.Param("id")
+    movieID64, err := strconv.ParseUint(movieIDStr, 10, 64)
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "invalid movie id"})
+        return
+    }
+    movieID := uint(movieID64)
 
-	var reviews []models.Review
-	if err := db.Where("movie_id = ?", movieID).Find(&reviews).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load reviews"})
-		return
-	}
+    var reviews []models.Review
+    if err := db.Where("movie_id = ?", movieID).Find(&reviews).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load reviews"})
+        return
+    }
 
-	c.JSON(http.StatusOK, reviews)
+    c.JSON(http.StatusOK, reviews)
 }
+
 
 // PUT /api/reviews/:id
 func UpdateReview(c *gin.Context, db *gorm.DB) {

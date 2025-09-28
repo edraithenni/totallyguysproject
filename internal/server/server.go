@@ -31,9 +31,10 @@ func NewServer(db *gorm.DB) *Server {
 			movies.DELETE("/:id/like", func(c *gin.Context) { handlers.UnlikeMovie(c, db) })
 
 			// Reviews on moviepage
-			movies.GET("/:id/reviews", func(c *gin.Context) { handlers.GetReviewsForMovie(c, db) })
+			
 			movies.POST("/:id/reviews", func(c *gin.Context) { handlers.CreateReview(c, db) })
 		}
+		movies.GET("/:id/reviews", func(c *gin.Context) { handlers.GetReviewsForMovie(c, db) })
 		api.GET("/movies/search", func(c *gin.Context) { handlers.SearchAndSaveMovie(c, db) })
 		api.GET("/movies/:id", func(c *gin.Context) { handlers.GetMovie(c, db) })
 		
