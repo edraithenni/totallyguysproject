@@ -1,0 +1,40 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0" version="28.2.5">
+  <diagram name="Page-1" id="ZGB71ujSp4oX9bDwS3N1">
+    <mxGraphModel dx="827" dy="526" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" value="User" style="shape=umlActor;" parent="1" vertex="1">
+          <mxGeometry x="50" y="120" width="30" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="3" value="Admin" style="shape=umlActor;" parent="1" vertex="1">
+          <mxGeometry x="50" y="300" width="30" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="4" value="Search Movies" style="ellipse;whiteSpace=wrap;" parent="1" vertex="1">
+          <mxGeometry x="300" y="100" width="160" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="5" value="Write Review" style="ellipse;whiteSpace=wrap;" parent="1" vertex="1">
+          <mxGeometry x="300" y="200" width="160" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="6" value="Manage Playlists" style="ellipse;whiteSpace=wrap;" parent="1" vertex="1">
+          <mxGeometry x="300" y="300" width="160" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="7" value="Moderate Content" style="ellipse;whiteSpace=wrap;" parent="1" vertex="1">
+          <mxGeometry x="300" y="400" width="160" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="8" parent="1" source="2" target="4" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="9" parent="1" source="2" target="5" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="10" parent="1" source="2" target="6" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="11" parent="1" source="3" target="7" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
