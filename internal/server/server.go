@@ -14,12 +14,10 @@ type Server struct {
 
 func NewServer(db *gorm.DB) *Server {
 	r := gin.Default()
-
 	// web static
 	frontendPath := filepath.Join("..", "..", "..", "totallyweb", "web")
 	r.Static("/static", frontendPath)
-	r.Static("/uploads", "../../../totallyweb/uploads")
-
+	r.Static("/uploads", filepath.Join("..", "..", "..", "totallyweb", "uploads"))
 	// API
 	api := r.Group("/api")
 	{
@@ -36,7 +34,7 @@ func NewServer(db *gorm.DB) *Server {
 		}
 		api.GET("/movies/search", func(c *gin.Context) { handlers.SearchAndSaveMovie(c, db) })
 		api.GET("/movies/:id", func(c *gin.Context) { handlers.GetMovie(c, db) })
-		
+
 		reviews := api.Group("/reviews")
 		reviews.Use(handlers.AuthMiddleware(false))
 		{
@@ -67,13 +65,12 @@ func NewServer(db *gorm.DB) *Server {
 				userAuth.GET("/me/playlists", func(c *gin.Context) { handlers.GetMyPlaylists(c, db) })
 				userAuth.GET("/me/reviews", func(c *gin.Context) { handlers.GetMyReviews(c, db) })
 
-
 				// follow/unfollow other users
 				userAuth.GET("/me/followers", func(c *gin.Context) { handlers.GetMyFollowers(c, db) })
 				userAuth.GET("/me/following", func(c *gin.Context) { handlers.GetMyFollowing(c, db) })
 				userAuth.POST("/:id/follow", func(c *gin.Context) { handlers.FollowUser(c, db) })
 				userAuth.DELETE("/:id/follow", func(c *gin.Context) { handlers.UnfollowUser(c, db) })
-				
+
 			}
 		}
 

@@ -346,7 +346,7 @@ func UploadAvatar(c *gin.Context, db *gorm.DB) {
 	}
 
 	// create an individual user directory
-	basePath := "../../uploads/avatars"
+	basePath := "../../../totallyweb/uploads/avatars"
 	userFolder := fmt.Sprintf("%s/%v", basePath, userID)
 
 	if err := os.MkdirAll(userFolder, 0755); err != nil {
