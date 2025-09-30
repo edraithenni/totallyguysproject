@@ -31,25 +31,25 @@ func NewServer(db *gorm.DB) *Server {
 
 	// WebSocket endpoint
 	r.GET("/ws", func(c *gin.Context) {
-	uidStr := c.Query("user_id")
-	uid64, _ := strconv.ParseUint(uidStr, 10, 64)
-	userID := uint(uid64)
+		uidStr := c.Query("user_id")
+		uid64, _ := strconv.ParseUint(uidStr, 10, 64)
+		userID := uint(uid64)
 
-	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
-	if err != nil {
-		return
-	}
-	hub.AddClient(userID, conn)
-
-	go func() {
-		defer hub.RemoveClient(userID, conn)
-		for {
-			if _, _, err := conn.ReadMessage(); err != nil {
-				break
-			}
+		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+		if err != nil {
+			return
 		}
-	}()
-})
+		hub.AddClient(userID, conn)
+
+		go func() {
+			defer hub.RemoveClient(userID, conn)
+			for {
+				if _, _, err := conn.ReadMessage(); err != nil {
+					break
+				}
+			}
+		}()
+	})
 
 	// API
 	api := r.Group("/api")
