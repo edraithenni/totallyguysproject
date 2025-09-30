@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"strconv"
 	"totallyguysproject/internal/models"
+	"totallyguysproject/internal/ws"
+	"fmt"
 )
 
 // POST /api/movies/:id/reviews
-func CreateReview(c *gin.Context, db *gorm.DB) {
+func CreateReview(c *gin.Context, db *gorm.DB, hub *ws.Hub) {
 	uid, ok := c.Get("userID")
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
@@ -50,6 +52,17 @@ func CreateReview(c *gin.Context, db *gorm.DB) {
 	if err := db.Create(&review).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create review"})
 		return
+	}
+    
+	var followers []models.Follow
+	if err := db.Where("followed_id = ?", userID).Find(&followers).Error; err == nil {
+		followerIDs := make([]uint, 0, len(followers))
+		for _, f := range followers {
+			followerIDs = append(followerIDs, f.FollowerID)
+		}
+
+		msg := fmt.Sprintf("User %d wrote review on film %d", userID, movieID)
+		hub.SendToMany(followerIDs, msg)
 	}
 
 	c.JSON(http.StatusCreated, review)
