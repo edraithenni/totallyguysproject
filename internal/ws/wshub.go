@@ -44,7 +44,10 @@ func (h *Hub) Send(userID uint, msg string) {
 	defer h.mu.RUnlock()
 	if conns, ok := h.clients[userID]; ok {
 		for conn := range conns {
-			conn.WriteJSON(map[string]string{"message": msg})
+			if err := conn.WriteJSON(map[string]string{"message": msg}); err != nil {
+    			h.RemoveClient(userID, conn)
+			}
+
 		}
 	}
 }
