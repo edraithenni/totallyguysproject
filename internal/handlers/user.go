@@ -252,6 +252,7 @@ func GetProfile(c *gin.Context, db *gorm.DB) {
 	c.JSON(http.StatusOK, gin.H{
 		"id":          user.ID,
 		"name":        user.Name,
+		"email":       user.Email,
 		"avatar":      user.Avatar,
 		"description": user.Description,
 		"playlists":   playlists,

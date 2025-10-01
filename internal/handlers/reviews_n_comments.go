@@ -8,7 +8,20 @@ import (
 	"totallyguysproject/internal/models"
 	"totallyguysproject/internal/ws"
 	"fmt"
+	"time"
 )
+
+type ReviewWithMovie struct {
+    ID        uint      `json:"id"`
+    MovieID   uint      `json:"movie_id"`
+    UserID    uint      `json:"user_id"`
+    Content   string    `json:"content"`
+    Rating    int       `json:"rating"`
+    CreatedAt time.Time `json:"created_at"`
+    UpdatedAt time.Time `json:"updated_at"`
+    
+    MovieTitle string `json:"movie_title"`
+}
 
 // POST /api/movies/:id/reviews
 func CreateReview(c *gin.Context, db *gorm.DB, hub *ws.Hub) {
@@ -176,8 +189,12 @@ func DeleteReview(c *gin.Context, db *gorm.DB) {
 func GetReviewsByUser(c *gin.Context, db *gorm.DB) {
     userID := c.Param("id")
 
-    var reviews []models.Review
-    if err := db.Where("user_id = ?", userID).Find(&reviews).Error; err != nil {
+    var reviews []ReviewWithMovie
+    if err := db.Table("reviews").
+        Select("reviews.id, reviews.movie_id, reviews.user_id, reviews.content, reviews.rating, reviews.created_at, reviews.updated_at, movies.title as movie_title").
+        Joins("left join movies on movies.id = reviews.movie_id").
+        Where("reviews.user_id = ?", userID).
+        Scan(&reviews).Error; err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load reviews"})
         return
     }
@@ -194,9 +211,13 @@ func GetMyReviews(c *gin.Context, db *gorm.DB) {
     }
     userID := uid.(uint)
 
-    var reviews []models.Review
-    if err := db.Where("user_id = ?", userID).Find(&reviews).Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load my reviews"})
+    var reviews []ReviewWithMovie
+    if err := db.Table("reviews").
+        Select("reviews.id, reviews.movie_id, reviews.user_id, reviews.content, reviews.rating, reviews.created_at, reviews.updated_at, movies.title as movie_title").
+        Joins("left join movies on movies.id = reviews.movie_id").
+        Where("reviews.user_id = ?", userID).
+        Scan(&reviews).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load reviews"})
         return
     }
 
