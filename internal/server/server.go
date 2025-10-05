@@ -1,20 +1,21 @@
 package server
 
 import (
-	"path/filepath"
-	"totallyguysproject/internal/handlers"
 	"net/http"
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
-	"totallyguysproject/internal/ws"
+	"path/filepath"
 	"strconv"
+	"totallyguysproject/internal/handlers"
+	"totallyguysproject/internal/ws"
+
+	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"gorm.io/gorm"
 )
 
 var upgrader = websocket.Upgrader{
-    CheckOrigin: func(r *http.Request) bool {
-        return true
-    },
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
 }
 
 type Server struct {
@@ -62,7 +63,7 @@ func NewServer(db *gorm.DB) *Server {
 			movies.DELETE("/:id/like", func(c *gin.Context) { handlers.UnlikeMovie(c, db) })
 
 			// Reviews on moviepage
-			
+
 			movies.POST("/:id/reviews", func(c *gin.Context) { handlers.CreateReview(c, db, hub) })
 		}
 		api.GET("movies/load-by-genre", func(c *gin.Context) { handlers.LoadMoviesByGenre(c, db) })
@@ -123,7 +124,7 @@ func NewServer(db *gorm.DB) *Server {
 			playlist.DELETE("/:id", func(c *gin.Context) { handlers.DeletePlaylist(c, db) })
 			playlist.DELETE("/:id/movies/:movie_id", func(c *gin.Context) { handlers.RemoveMovieFromPlaylist(c, db) })
 
-			//  playlist.POST("/:id/cover", func(c *gin.Context) { handlers.UploadPlaylistCover(c, db) }) // l8r
+			//playlist.POST("/:id/cover", func(c *gin.Context) { handlers.UploadPlaylistCover(c, db) }) // l8r
 
 		}
 		playlist.GET("/:id", func(c *gin.Context) { handlers.GetPlaylist(c, db) })

@@ -1,58 +1,59 @@
 package handlers
 
 import (
+	"net/http"
+	"strconv"
+	"totallyguysproject/internal/models"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-	"net/http"
-	"totallyguysproject/internal/models"
-	"strconv"
 )
 
 // POST /api/playlists authorized only
 func CreatePlaylist(c *gin.Context, db *gorm.DB) {
-    userID, ok := c.Get("userID")
-    if !ok {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-        return
-    }
+	userID, ok := c.Get("userID")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
-    var req struct {
-        Name  string `json:"name"`
-        Cover string `json:"cover"` // 
-    }
-    if err := c.ShouldBindJSON(&req); err != nil || req.Name == "" {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
-        return
-    }
+	var req struct {
+		Name  string `json:"name"`
+		Cover string `json:"cover"` //
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.Name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
 
-    if req.Cover == "" {
-        req.Cover = "/static/playlists/collection-placeholder.png"
-    }
+	if req.Cover == "" {
+		req.Cover = "/static/src/default-playlist.jpg"
+	}
 
-    playlist := models.Playlist{
-        Name:    req.Name,
-        OwnerID: userID.(uint),
-        Cover:   req.Cover,
-    }
-    if err := db.Create(&playlist).Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create playlist"})
-        return
-    }
+	playlist := models.Playlist{
+		Name:    req.Name,
+		OwnerID: userID.(uint),
+		Cover:   req.Cover,
+	}
+	if err := db.Create(&playlist).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create playlist"})
+		return
+	}
 
-    c.JSON(http.StatusCreated, playlist)
+	c.JSON(http.StatusCreated, playlist)
 }
 
 // GET /api/playlists/:id
 func GetPlaylist(c *gin.Context, db *gorm.DB) {
-    id := c.Param("id")
+	id := c.Param("id")
 
-    var playlist models.Playlist
-    if err := db.Preload("Movies").First(&playlist, id).Error; err != nil {
-        c.JSON(http.StatusNotFound, gin.H{"error": "playlist not found"})
-        return
-    }
+	var playlist models.Playlist
+	if err := db.Preload("Movies").First(&playlist, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "playlist not found"})
+		return
+	}
 
-    c.JSON(http.StatusOK, playlist)
+	c.JSON(http.StatusOK, playlist)
 }
 
 // POST /api/playlists/:id/add
@@ -174,52 +175,52 @@ func DeletePlaylist(c *gin.Context, db *gorm.DB) {
 
 // DELETE /api/playlists/:id/movies/:movie_id
 func RemoveMovieFromPlaylist(c *gin.Context, db *gorm.DB) {
-    uid, ok := c.Get("userID")
-    if !ok {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-        return
-    }
-    userID := uid.(uint)
+	uid, ok := c.Get("userID")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	userID := uid.(uint)
 
-    playlistIDStr := c.Param("id")
-    pid64, err := strconv.ParseUint(playlistIDStr, 10, 64)
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "invalid playlist id"})
-        return
-    }
-    playlistID := uint(pid64)
+	playlistIDStr := c.Param("id")
+	pid64, err := strconv.ParseUint(playlistIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid playlist id"})
+		return
+	}
+	playlistID := uint(pid64)
 
-    movieIDStr := c.Param("movie_id")
-    mid64, err := strconv.ParseUint(movieIDStr, 10, 64)
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "invalid movie id"})
-        return
-    }
-    movieID := uint(mid64)
+	movieIDStr := c.Param("movie_id")
+	mid64, err := strconv.ParseUint(movieIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid movie id"})
+		return
+	}
+	movieID := uint(mid64)
 
-    var playlist models.Playlist
-    if err := db.Preload("Movies").First(&playlist, playlistID).Error; err != nil {
-        c.JSON(http.StatusNotFound, gin.H{"error": "playlist not found"})
-        return
-    }
+	var playlist models.Playlist
+	if err := db.Preload("Movies").First(&playlist, playlistID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "playlist not found"})
+		return
+	}
 
-    if playlist.OwnerID != userID {
-        c.JSON(http.StatusForbidden, gin.H{"error": "not your playlist"})
-        return
-    }
+	if playlist.OwnerID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "not your playlist"})
+		return
+	}
 
-    var movie models.Movie
-    if err := db.First(&movie, movieID).Error; err != nil {
-        c.JSON(http.StatusNotFound, gin.H{"error": "movie not found"})
-        return
-    }
+	var movie models.Movie
+	if err := db.First(&movie, movieID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "movie not found"})
+		return
+	}
 
-    if err := db.Model(&playlist).Association("Movies").Unscoped().Delete(&movie); err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to remove movie"})
-        return
-    }
+	if err := db.Model(&playlist).Association("Movies").Unscoped().Delete(&movie); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to remove movie"})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{"message": "movie removed from playlist"})
+	c.JSON(http.StatusOK, gin.H{"message": "movie removed from playlist"})
 }
 
 // POST /api/movies/:id/like
@@ -238,8 +239,8 @@ func LikeMovie(c *gin.Context, db *gorm.DB) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "movie not found"})
 		return
 	}
-	
-	// find default playlist "liked" 
+
+	// find default playlist "liked"
 	var playlist models.Playlist
 	if err := db.Where("owner_id = ? AND name = ?", userID, "liked").Preload("Movies").First(&playlist).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to find liked playlist"})
@@ -291,5 +292,3 @@ func UnlikeMovie(c *gin.Context, db *gorm.DB) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "unliked", "movie": movie})
 }
-
-
