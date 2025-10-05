@@ -1,20 +1,21 @@
 package server
 
 import (
-	"path/filepath"
-	"totallyguysproject/internal/handlers"
 	"net/http"
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
-	"totallyguysproject/internal/ws"
+	"path/filepath"
 	"strconv"
+	"totallyguysproject/internal/handlers"
+	"totallyguysproject/internal/ws"
+
+	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"gorm.io/gorm"
 )
 
 var upgrader = websocket.Upgrader{
-    CheckOrigin: func(r *http.Request) bool {
-        return true
-    },
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
 }
 
 type Server struct {
@@ -62,7 +63,7 @@ func NewServer(db *gorm.DB) *Server {
 			movies.DELETE("/:id/like", func(c *gin.Context) { handlers.UnlikeMovie(c, db) })
 
 			// Reviews on moviepage
-			
+
 			movies.POST("/:id/reviews", func(c *gin.Context) { handlers.CreateReview(c, db, hub) })
 		}
 		api.GET("movies/load-by-genre", func(c *gin.Context) { handlers.LoadMoviesByGenre(c, db) })
@@ -75,6 +76,17 @@ func NewServer(db *gorm.DB) *Server {
 		{
 			reviews.PUT("/:id", func(c *gin.Context) { handlers.UpdateReview(c, db) })
 			reviews.DELETE("/:id", func(c *gin.Context) { handlers.DeleteReview(c, db) })
+
+			//comments nested under reviews
+			reviews.GET("/:id/comments", func(c *gin.Context) { handlers.GetCommentsForReview(c, db) })
+			reviews.POST("/:id/comments", func(c *gin.Context) { handlers.CreateComment(c, db) })
+		}
+		// comments
+		comments := api.Group("/comments")
+		comments.Use(handlers.AuthMiddleware(false))
+		{
+			comments.PUT("/:id", func(c *gin.Context) { handlers.UpdateComment(c, db) })
+			comments.DELETE("/:id", func(c *gin.Context) { handlers.DeleteComment(c, db) })
 		}
 
 		// Authentiication
