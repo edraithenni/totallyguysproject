@@ -32,6 +32,7 @@ type Movie struct {
     Actors   string  `json:"actors"`
     Rating   string  `json:"rating"`    // imdbRating string
     AvgRating float64 `json:"avg_rating"`
+	Reviews   []Review `gorm:"foreignKey:MovieID"`
 }
 
 type Playlist struct {

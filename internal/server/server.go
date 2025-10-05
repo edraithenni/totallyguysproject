@@ -3,10 +3,19 @@ package server
 import (
 	"path/filepath"
 	"totallyguysproject/internal/handlers"
-
+	"net/http"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"totallyguysproject/internal/ws"
+	"strconv"
+	"github.com/gorilla/websocket"
 )
+
+var upgrader = websocket.Upgrader{
+    CheckOrigin: func(r *http.Request) bool {
+        return true
+    },
+}
 
 type Server struct {
 	Router *gin.Engine
@@ -14,10 +23,34 @@ type Server struct {
 
 func NewServer(db *gorm.DB) *Server {
 	r := gin.Default()
+	hub := ws.NewHub()
 	// web static
 	frontendPath := filepath.Join("..", "..", "..", "totallyweb", "web")
 	r.Static("/static", frontendPath)
 	r.Static("/uploads", filepath.Join("..", "..", "..", "totallyweb", "uploads"))
+
+	// WebSocket endpoint
+	r.GET("/ws", func(c *gin.Context) {
+		uidStr := c.Query("user_id")
+		uid64, _ := strconv.ParseUint(uidStr, 10, 64)
+		userID := uint(uid64)
+
+		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+		if err != nil {
+			return
+		}
+		hub.AddClient(userID, conn)
+
+		go func() {
+			defer hub.RemoveClient(userID, conn)
+			for {
+				if _, _, err := conn.ReadMessage(); err != nil {
+					break
+				}
+			}
+		}()
+	})
+
 	// API
 	api := r.Group("/api")
 	{
@@ -30,9 +63,10 @@ func NewServer(db *gorm.DB) *Server {
 
 			// Reviews on moviepage
 			
-			movies.POST("/:id/reviews", func(c *gin.Context) { handlers.CreateReview(c, db) })
+			movies.POST("/:id/reviews", func(c *gin.Context) { handlers.CreateReview(c, db, hub) })
 		}
-		movies.GET("/:id/reviews", func(c *gin.Context) { handlers.GetReviewsForMovie(c, db) })
+		api.GET("movies/load-by-genre", func(c *gin.Context) { handlers.LoadMoviesByGenre(c, db) })
+		api.GET("movies/:id/reviews", func(c *gin.Context) { handlers.GetReviewsForMovie(c, db) })
 		api.GET("/movies/search", func(c *gin.Context) { handlers.SearchAndSaveMovie(c, db) })
 		api.GET("/movies/:id", func(c *gin.Context) { handlers.GetMovie(c, db) })
 

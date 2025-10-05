@@ -6,10 +6,25 @@ import (
 	"net/http"
 	"strconv"
 	"totallyguysproject/internal/models"
+	"totallyguysproject/internal/ws"
+	"fmt"
+	"time"
 )
 
+type ReviewWithMovie struct {
+    ID        uint      `json:"id"`
+    MovieID   uint      `json:"movie_id"`
+    UserID    uint      `json:"user_id"`
+    Content   string    `json:"content"`
+    Rating    int       `json:"rating"`
+    CreatedAt time.Time `json:"created_at"`
+    UpdatedAt time.Time `json:"updated_at"`
+    
+    MovieTitle string `json:"movie_title"`
+}
+
 // POST /api/movies/:id/reviews
-func CreateReview(c *gin.Context, db *gorm.DB) {
+func CreateReview(c *gin.Context, db *gorm.DB, hub *ws.Hub) {
 	uid, ok := c.Get("userID")
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
@@ -50,6 +65,17 @@ func CreateReview(c *gin.Context, db *gorm.DB) {
 	if err := db.Create(&review).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create review"})
 		return
+	}
+    
+	var followers []models.Follow
+	if err := db.Where("followed_id = ?", userID).Find(&followers).Error; err == nil {
+		followerIDs := make([]uint, 0, len(followers))
+		for _, f := range followers {
+			followerIDs = append(followerIDs, f.FollowerID)
+		}
+
+		msg := fmt.Sprintf("User %d wrote review on film %d", userID, movieID)
+		hub.SendToMany(followerIDs, msg)
 	}
 
 	c.JSON(http.StatusCreated, review)
@@ -163,8 +189,12 @@ func DeleteReview(c *gin.Context, db *gorm.DB) {
 func GetReviewsByUser(c *gin.Context, db *gorm.DB) {
     userID := c.Param("id")
 
-    var reviews []models.Review
-    if err := db.Where("user_id = ?", userID).Find(&reviews).Error; err != nil {
+    var reviews []ReviewWithMovie
+    if err := db.Table("reviews").
+        Select("reviews.id, reviews.movie_id, reviews.user_id, reviews.content, reviews.rating, reviews.created_at, reviews.updated_at, movies.title as movie_title").
+        Joins("left join movies on movies.id = reviews.movie_id").
+        Where("reviews.user_id = ?", userID).
+        Scan(&reviews).Error; err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load reviews"})
         return
     }
@@ -181,9 +211,13 @@ func GetMyReviews(c *gin.Context, db *gorm.DB) {
     }
     userID := uid.(uint)
 
-    var reviews []models.Review
-    if err := db.Where("user_id = ?", userID).Find(&reviews).Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load my reviews"})
+    var reviews []ReviewWithMovie
+    if err := db.Table("reviews").
+        Select("reviews.id, reviews.movie_id, reviews.user_id, reviews.content, reviews.rating, reviews.created_at, reviews.updated_at, movies.title as movie_title").
+        Joins("left join movies on movies.id = reviews.movie_id").
+        Where("reviews.user_id = ?", userID).
+        Scan(&reviews).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load reviews"})
         return
     }
 
