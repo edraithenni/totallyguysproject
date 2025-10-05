@@ -76,6 +76,17 @@ func NewServer(db *gorm.DB) *Server {
 		{
 			reviews.PUT("/:id", func(c *gin.Context) { handlers.UpdateReview(c, db) })
 			reviews.DELETE("/:id", func(c *gin.Context) { handlers.DeleteReview(c, db) })
+
+			//comments nested under reviews
+			reviews.GET("/:id/comments", func(c *gin.Context) { handlers.GetCommentsForReview(c, db) })
+			reviews.POST("/:id/comments", func(c *gin.Context) { handlers.CreateComment(c, db) })
+		}
+		// comments
+		comments := api.Group("/comments")
+		comments.Use(handlers.AuthMiddleware(false))
+		{
+			comments.PUT("/:id", func(c *gin.Context) { handlers.UpdateComment(c, db) })
+			comments.DELETE("/:id", func(c *gin.Context) { handlers.DeleteComment(c, db) })
 		}
 
 		// Authentiication
