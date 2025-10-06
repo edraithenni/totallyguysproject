@@ -33,6 +33,12 @@ func InitDB() *gorm.DB {
         log.Fatal("failed to migrate database:", err)
     }
 
+	if !db.Migrator().HasColumn(&models.PlaylistMovie{}, "Description") {
+        if err := db.Migrator().AddColumn(&models.PlaylistMovie{}, "Description"); err != nil {
+            log.Fatal("failed to create column", err)
+        }
+    }
+
     fmt.Println("Database connected and migrated")
     return db
 }

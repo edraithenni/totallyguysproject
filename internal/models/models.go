@@ -72,3 +72,13 @@ type Follow struct {
 	FollowerID uint `gorm:"uniqueIndex:idx_follower_followed"`
 	FollowedID uint `gorm:"uniqueIndex:idx_follower_followed"`
 }
+
+type PlaylistMovie struct {
+	PlaylistID  uint   `gorm:"primaryKey" json:"playlist_id"`
+	MovieID     uint   `gorm:"primaryKey" json:"movie_id"`
+	Description string `json:"description"`
+}
+
+func (PlaylistMovie) TableName() string {
+    return "playlist_movies"
+}

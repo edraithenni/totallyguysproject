@@ -292,3 +292,71 @@ func UnlikeMovie(c *gin.Context, db *gorm.DB) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "unliked", "movie": movie})
 }
+
+// PUT /api/playlists/:id/movies/:movie_id/description
+func UpdateMovieDescriptionInPlaylist(c *gin.Context, db *gorm.DB) {
+	uid, ok := c.Get("userID")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	userID := uid.(uint)
+
+	pidStr := c.Param("id")
+	midStr := c.Param("movie_id")
+
+	pid64, err := strconv.ParseUint(pidStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid playlist id"})
+		return
+	}
+	mid64, err := strconv.ParseUint(midStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid movie id"})
+		return
+	}
+	playlistID := uint(pid64)
+	movieID := uint(mid64)
+
+	var playlist models.Playlist
+	if err := db.First(&playlist, playlistID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "playlist not found"})
+		return
+	}
+	if playlist.OwnerID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "not your playlist"})
+		return
+	}
+
+	var req struct {
+		Description string `json:"description"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	var link models.PlaylistMovie
+	if err := db.Where("playlist_id = ? AND movie_id = ?", playlistID, movieID).First(&link).Error; err != nil {
+		link = models.PlaylistMovie{
+			PlaylistID:  playlistID,
+			MovieID:     movieID,
+			Description: req.Description,
+		}
+		if err := db.Create(&link).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create link"})
+			return
+		}
+	} else {
+		link.Description = req.Description
+		if err := db.Save(&link).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update description"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":     "description updated",
+		"description": link.Description,
+	})
+}

@@ -134,6 +134,7 @@ func NewServer(db *gorm.DB) *Server {
 			playlist.POST("/:id/add", func(c *gin.Context) { handlers.AddMovieToPlaylist(c, db) })
 			playlist.DELETE("/:id", func(c *gin.Context) { handlers.DeletePlaylist(c, db) })
 			playlist.DELETE("/:id/movies/:movie_id", func(c *gin.Context) { handlers.RemoveMovieFromPlaylist(c, db) })
+			playlist.PUT("/:id/movies/:movie_id/description", func(c *gin.Context) {handlers.UpdateMovieDescriptionInPlaylist(c, db) })
 
 			//playlist.POST("/:id/cover", func(c *gin.Context) { handlers.UploadPlaylistCover(c, db) }) // l8r
 
