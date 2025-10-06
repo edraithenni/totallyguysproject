@@ -138,7 +138,7 @@ func NewServer(db *gorm.DB) *Server {
 			//playlist.POST("/:id/cover", func(c *gin.Context) { handlers.UploadPlaylistCover(c, db) }) // l8r
 
 		}
-		playlist.GET("/:id", func(c *gin.Context) { handlers.GetPlaylist(c, db) })
+		api.GET("playlists/:id", func(c *gin.Context) { handlers.GetPlaylist(c, db) })
 
 	}
 
