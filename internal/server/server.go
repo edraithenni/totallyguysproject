@@ -6,10 +6,14 @@ import (
 	"strconv"
 	"totallyguysproject/internal/handlers"
 	"totallyguysproject/internal/ws"
-
+	"net/http/httputil"
+    "net/url"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"gorm.io/gorm"
+	"os/exec"
+    "time"
+	"log"
 )
 
 var upgrader = websocket.Upgrader{
@@ -22,13 +26,35 @@ type Server struct {
 	Router *gin.Engine
 }
 
+func StartNextDev() {
+    cmd := exec.Command("npm", "run", "dev")
+    cmd.Dir = "../../../totallyweb" 
+    cmd.Stdout = nil
+    cmd.Stderr = nil
+
+    err := cmd.Start()
+    if err != nil {
+        log.Println("Failed to start Next.js dev server:", err)
+        return
+    }
+
+    time.Sleep(3 * time.Second)
+}
+
 func NewServer(db *gorm.DB) *Server {
 	r := gin.Default()
 	hub := ws.NewHub()
-	// web static
-	frontendPath := filepath.Join("..", "..", "..", "totallyweb", "web")
-	r.Static("/static", frontendPath)
-	r.Static("/uploads", filepath.Join("..", "..", "..", "totallyweb", "uploads"))
+	// web static (legacy static content)
+	legacyPath := filepath.Join("..", "..", "..", "totallyweb", "public", "legacy", "web")
+	r.Static("/legacy", legacyPath)
+	r.Static("/uploads", filepath.Join("..", "..", "..", "totallyweb", "public", "legacy", "uploads"))
+    // next js host
+	nextURL, _ := url.Parse("http://localhost:3000")
+	r.Any("/app/*path", func(c *gin.Context) {
+    	proxy := httputil.NewSingleHostReverseProxy(nextURL)
+    	c.Request.URL.Path = c.Param("path") 
+    	proxy.ServeHTTP(c.Writer, c.Request)
+	})
 
 	// WebSocket endpoint
 	r.GET("/ws", func(c *gin.Context) {
@@ -145,8 +171,9 @@ func NewServer(db *gorm.DB) *Server {
 
 	// main page
 	r.GET("/", func(c *gin.Context) {
-		c.Redirect(302, "/static/index.html")
+    	c.Redirect(http.StatusFound, "/legacy/index.html")
 	})
+
 
 	return &Server{Router: r}
 }

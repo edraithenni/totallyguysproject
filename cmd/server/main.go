@@ -14,8 +14,11 @@ import (
     ginSwagger "github.com/swaggo/gin-swagger"
 )
 
+
 func main() {
 	db := database.InitDB()
+
+	go server.StartNextDev()
     
     srv := server.NewServer(db)
 	//docs.SwaggerInfo.BasePath = "/api/v1"
