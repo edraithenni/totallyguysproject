@@ -14,6 +14,8 @@ import (
 	"os/exec"
     "time"
 	"log"
+	"net"
+    "os"
 )
 
 var upgrader = websocket.Upgrader{
@@ -27,19 +29,33 @@ type Server struct {
 }
 
 func StartNextDev() {
-    cmd := exec.Command("npm", "run", "dev")
-    cmd.Dir = "../../../totallyweb" 
-    cmd.Stdout = nil
-    cmd.Stderr = nil
+    log.Println("Starting Next.js dev server...")
 
-    err := cmd.Start()
-    if err != nil {
+    cmd := exec.Command("npm", "run", "dev")
+    cmd.Dir = "../../../totallyweb"
+    cmd.Stdout = os.Stdout
+    cmd.Stderr = os.Stderr
+    cmd.Env = os.Environ()
+
+    if err := cmd.Start(); err != nil {
         log.Println("Failed to start Next.js dev server:", err)
         return
     }
 
-    time.Sleep(3 * time.Second)
+    deadline := time.Now().Add(15 * time.Second)
+    for time.Now().Before(deadline) {
+        conn, err := net.DialTimeout("tcp", "127.0.0.1:3000", 500*time.Millisecond)
+        if err == nil {
+            conn.Close()
+            log.Println("Next.js is up at http://localhost:3000")
+            return
+        }
+        time.Sleep(500 * time.Millisecond)
+    }
+
+    log.Println("Timeout: Next.js didn't start on port 3000.")
 }
+
 
 func NewServer(db *gorm.DB) *Server {
 	r := gin.Default()
