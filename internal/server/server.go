@@ -1,21 +1,22 @@
 package server
 
 import (
+	"log"
+	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
+	"time"
 	"totallyguysproject/internal/handlers"
 	"totallyguysproject/internal/ws"
-	"net/http/httputil"
-    "net/url"
+
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"gorm.io/gorm"
-	"os/exec"
-    "time"
-	"log"
-	"net"
-    "os"
 )
 
 var upgrader = websocket.Upgrader{
@@ -29,33 +30,32 @@ type Server struct {
 }
 
 func StartNextDev() {
-    log.Println("Starting Next.js dev server...")
+	log.Println("Starting Next.js dev server...")
 
-    cmd := exec.Command("npm", "run", "dev")
-    cmd.Dir = "../../../totallyweb"
-    cmd.Stdout = os.Stdout
-    cmd.Stderr = os.Stderr
-    cmd.Env = os.Environ()
+	cmd := exec.Command("npm", "run", "dev")
+	cmd.Dir = "../../../totallyweb"
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Env = os.Environ()
 
-    if err := cmd.Start(); err != nil {
-        log.Println("Failed to start Next.js dev server:", err)
-        return
-    }
+	if err := cmd.Start(); err != nil {
+		log.Println("Failed to start Next.js dev server:", err)
+		return
+	}
 
-    deadline := time.Now().Add(15 * time.Second)
-    for time.Now().Before(deadline) {
-        conn, err := net.DialTimeout("tcp", "127.0.0.1:3000", 500*time.Millisecond)
-        if err == nil {
-            conn.Close()
-            log.Println("Next.js is up at http://localhost:3000")
-            return
-        }
-        time.Sleep(500 * time.Millisecond)
-    }
+	deadline := time.Now().Add(15 * time.Second)
+	for time.Now().Before(deadline) {
+		conn, err := net.DialTimeout("tcp", "127.0.0.1:3000", 500*time.Millisecond)
+		if err == nil {
+			conn.Close()
+			log.Println("Next.js is up at http://localhost:3000")
+			return
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
 
-    log.Println("Timeout: Next.js didn't start on port 3000.")
+	log.Println("Timeout: Next.js didn't start on port 3000.")
 }
-
 
 func NewServer(db *gorm.DB) *Server {
 	r := gin.Default()
@@ -64,12 +64,12 @@ func NewServer(db *gorm.DB) *Server {
 	legacyPath := filepath.Join("..", "..", "..", "totallyweb", "public", "legacy", "web")
 	r.Static("/legacy", legacyPath)
 	r.Static("/uploads", filepath.Join("..", "..", "..", "totallyweb", "public", "legacy", "uploads"))
-    // next js host
+	// next js host
 	nextURL, _ := url.Parse("http://localhost:3000")
 	r.Any("/app/*path", func(c *gin.Context) {
-    	proxy := httputil.NewSingleHostReverseProxy(nextURL)
-    	c.Request.URL.Path = c.Param("path") 
-    	proxy.ServeHTTP(c.Writer, c.Request)
+		proxy := httputil.NewSingleHostReverseProxy(nextURL)
+		c.Request.URL.Path = c.Param("path")
+		proxy.ServeHTTP(c.Writer, c.Request)
 	})
 
 	// WebSocket endpoint
@@ -172,11 +172,11 @@ func NewServer(db *gorm.DB) *Server {
 		playlist := api.Group("/playlists")
 		playlist.Use(handlers.AuthMiddleware(false))
 		{
-			playlist.POST("/", func(c *gin.Context) { handlers.CreatePlaylist(c, db) })
+			playlist.POST("", func(c *gin.Context) { handlers.CreatePlaylist(c, db) })
 			playlist.POST("/:id/add", func(c *gin.Context) { handlers.AddMovieToPlaylist(c, db) })
 			playlist.DELETE("/:id", func(c *gin.Context) { handlers.DeletePlaylist(c, db) })
 			playlist.DELETE("/:id/movies/:movie_id", func(c *gin.Context) { handlers.RemoveMovieFromPlaylist(c, db) })
-			playlist.PUT("/:id/movies/:movie_id/description", func(c *gin.Context) {handlers.UpdateMovieDescriptionInPlaylist(c, db) })
+			playlist.PUT("/:id/movies/:movie_id/description", func(c *gin.Context) { handlers.UpdateMovieDescriptionInPlaylist(c, db) })
 
 			//playlist.POST("/:id/cover", func(c *gin.Context) { handlers.UploadPlaylistCover(c, db) }) // l8r
 
@@ -187,9 +187,8 @@ func NewServer(db *gorm.DB) *Server {
 
 	// main page
 	r.GET("/", func(c *gin.Context) {
-    	c.Redirect(http.StatusFound, "/legacy/index.html")
+		c.Redirect(http.StatusFound, "/legacy/index.html")
 	})
-
 
 	return &Server{Router: r}
 }

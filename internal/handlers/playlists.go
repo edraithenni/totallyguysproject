@@ -40,7 +40,12 @@ func CreatePlaylist(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, playlist)
+	c.JSON(http.StatusCreated, gin.H{
+		"id":    playlist.ID,
+		"name":  playlist.Name,
+		"cover": playlist.Cover,
+	})
+
 }
 
 // GET /api/playlists/:id

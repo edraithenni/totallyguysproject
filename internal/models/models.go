@@ -80,5 +80,5 @@ type PlaylistMovie struct {
 }
 
 func (PlaylistMovie) TableName() string {
-    return "playlist_movies"
+	return "playlist_movies"
 }
