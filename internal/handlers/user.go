@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 	"totallyguysproject/internal/models"
 	"totallyguysproject/internal/utils"
@@ -569,4 +570,28 @@ func GetUserPlaylists(c *gin.Context, db *gorm.DB) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"playlists": resp})
+}
+
+// handlers/user.go
+func IsFollowing(c *gin.Context, db *gorm.DB) {
+	currentUserInterface, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
+	}
+
+	currentUser := currentUserInterface.(models.User)
+	targetUserID := c.Param("id")
+
+	targetID, err := strconv.ParseUint(targetUserID, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	var count int64
+	db.Model(&models.Follow{}).Where("follower_id = ? AND followed_id = ?",
+		currentUser.ID, uint(targetID)).Count(&count)
+
+	c.JSON(http.StatusOK, gin.H{"isFollowing": count > 0})
 }

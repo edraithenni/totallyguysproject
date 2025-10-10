@@ -31,8 +31,17 @@ func FollowUser(c *gin.Context, db *gorm.DB) {
 	}
 
 	var existing models.Follow
-	err = db.Where("follower_id= ? AND followed_id = ?", myID, targetID).First(&existing).Error
+	err = db.Unscoped().Where("follower_id = ? AND followed_id = ?", myID, targetID).First(&existing).Error
 	if err == nil {
+		if existing.DeletedAt.Valid {
+			// Восстановить soft-deleted запись
+			if err := db.Unscoped().Model(&existing).Update("deleted_at", nil).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to restore follow"})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"message": "followed"})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": "already following"})
 		return
 	}
@@ -69,12 +78,42 @@ func UnfollowUser(c *gin.Context, db *gorm.DB) {
 	}
 	targetID := uint(targetID64)
 
-	if err := db.Where("follower_id = ? AND followed_id = ?", myID, targetID).Unscoped().Delete(&models.Follow{}).Error; err != nil {
+	if err := db.Where("follower_id = ? AND followed_id = ?", myID, targetID).Delete(&models.Follow{}).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to unfollow"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "unfollowed"})
+}
+
+// GET /users/:id/is-following
+func CheckIsFollowing(c *gin.Context, db *gorm.DB) {
+	uid, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	myID := uid.(uint)
+
+	targetID64, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+	targetID := uint(targetID64)
+
+	var existing models.Follow
+	err = db.Where("follower_id = ? AND followed_id = ?", myID, targetID).First(&existing).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusOK, gin.H{"isFollowing": false})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "db error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"isFollowing": true})
 }
 
 // GET /users/:id/followers
@@ -88,7 +127,7 @@ func GetFollowersByID(c *gin.Context, db *gorm.DB) {
 
 	var followers []models.User
 	db.Joins("JOIN follows ON follows.follower_id = users.id").
-		Where("follows.followed_id = ?", userID).
+		Where("follows.followed_id = ? AND follows.deleted_at IS NULL", userID).
 		Find(&followers)
 
 	c.JSON(http.StatusOK, gin.H{"followers": followers})
@@ -105,7 +144,7 @@ func GetFollowingByID(c *gin.Context, db *gorm.DB) {
 
 	var following []models.User
 	db.Joins("JOIN follows ON follows.followed_id = users.id").
-		Where("follows.follower_id = ?", userID).
+		Where("follows.follower_id = ? AND follows.deleted_at IS NULL", userID).
 		Find(&following)
 
 	c.JSON(http.StatusOK, gin.H{"following": following})
@@ -122,7 +161,7 @@ func GetMyFollowers(c *gin.Context, db *gorm.DB) {
 
 	var followers []models.User
 	db.Joins("JOIN follows ON follows.follower_id = users.id").
-		Where("follows.followed_id = ?", userID).
+		Where("follows.followed_id = ? AND follows.deleted_at IS NULL", userID).
 		Find(&followers)
 
 	c.JSON(http.StatusOK, gin.H{"followers": followers})
@@ -139,7 +178,7 @@ func GetMyFollowing(c *gin.Context, db *gorm.DB) {
 
 	var following []models.User
 	db.Joins("JOIN follows ON follows.followed_id = users.id").
-		Where("follows.follower_id = ?", userID).
+		Where("follows.follower_id = ? AND follows.deleted_at IS NULL", userID).
 		Find(&following)
 
 	c.JSON(http.StatusOK, gin.H{"following": following})
