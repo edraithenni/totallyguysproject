@@ -142,6 +142,46 @@ func GetMovie(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
+	if movie.Plot == "" || movie.Genre == "" || movie.Director == "" {
+		detailsURL := fmt.Sprintf("http://www.omdbapi.com/?apikey=%s&i=%s", omdbAPIKey, movie.OMDBID)
+		resp, err := http.Get(detailsURL)
+		if err == nil {
+			defer resp.Body.Close()
+			
+			body, _ := io.ReadAll(resp.Body)
+			var details map[string]interface{}
+			if err := json.Unmarshal(body, &details); err == nil && details["Response"] == "True" {
+			
+				updates := make(map[string]interface{})
+				
+				if movie.Plot == "" {
+					movie.Plot = fmt.Sprintf("%v", details["Plot"])
+					updates["plot"] = movie.Plot
+				}
+				if movie.Genre == "" {
+					movie.Genre = fmt.Sprintf("%v", details["Genre"])
+					updates["genre"] = movie.Genre
+				}
+				if movie.Director == "" {
+					movie.Director = fmt.Sprintf("%v", details["Director"])
+					updates["director"] = movie.Director
+				}
+				if movie.Actors == "" {
+					movie.Actors = fmt.Sprintf("%v", details["Actors"])
+					updates["actors"] = movie.Actors
+				}
+				if movie.Rating == "" {
+					movie.Rating = fmt.Sprintf("%v", details["imdbRating"])
+					updates["rating"] = movie.Rating
+				}
+				
+				if len(updates) > 0 {
+					db.Model(&movie).Updates(updates)
+				}
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, struct {
 		ID       uint   `json:"id"`
 		OMDBID   string `json:"omdb_id"`
