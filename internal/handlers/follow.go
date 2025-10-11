@@ -34,7 +34,6 @@ func FollowUser(c *gin.Context, db *gorm.DB) {
 	err = db.Unscoped().Where("follower_id = ? AND followed_id = ?", myID, targetID).First(&existing).Error
 	if err == nil {
 		if existing.DeletedAt.Valid {
-			// Восстановить soft-deleted запись
 			if err := db.Unscoped().Model(&existing).Update("deleted_at", nil).Error; err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to restore follow"})
 				return
