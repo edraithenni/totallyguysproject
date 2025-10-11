@@ -23,6 +23,20 @@ type ReviewWithMovie struct {
     MovieTitle string `json:"movie_title"`
 }
 
+type ReviewWithMovieAndUser struct {
+    ID          uint      `json:"id"`
+    MovieID     uint      `json:"movie_id"`
+    MovieTitle  string    `json:"movie_title"`
+    UserID      uint      `json:"user_id"`
+    UserName    string    `json:"user_name"`
+    UserAvatar  string    `json:"user_avatar"`
+    Content     string    `json:"content"`
+    Rating      int       `json:"rating"`
+    CreatedAt   time.Time `json:"created_at"`
+    UpdatedAt   time.Time `json:"updated_at"`
+}
+
+
 // POST /api/movies/:id/reviews
 func CreateReview(c *gin.Context, db *gorm.DB, hub *ws.Hub) {
 	uid, ok := c.Get("userID")
@@ -91,13 +105,22 @@ func GetReviewsForMovie(c *gin.Context, db *gorm.DB) {
     }
     movieID := uint(movieID64)
 
-    var reviews []models.Review
-    if err := db.Where("movie_id = ?", movieID).Find(&reviews).Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load reviews"})
-        return
-    }
+    var reviews []ReviewWithMovieAndUser
+	if err := db.Table("reviews").
+    	Select(`
+        	reviews.id, reviews.movie_id, movies.title AS movie_title,
+        	reviews.user_id, users.name AS user_name, users.avatar AS user_avatar,
+        	reviews.content, reviews.rating, reviews.created_at, reviews.updated_at
+    	`).
+    	Joins("LEFT JOIN movies ON movies.id = reviews.movie_id").
+    	Joins("LEFT JOIN users ON users.id = reviews.user_id").
+    	Where("reviews.movie_id = ?", movieID).
+    	Scan(&reviews).Error; err != nil {
+    	c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load reviews"})
+    	return
+	}
 
-    c.JSON(http.StatusOK, reviews)
+	c.JSON(http.StatusOK, reviews)
 }
 
 
@@ -189,15 +212,20 @@ func DeleteReview(c *gin.Context, db *gorm.DB) {
 func GetReviewsByUser(c *gin.Context, db *gorm.DB) {
     userID := c.Param("id")
 
-    var reviews []ReviewWithMovie
-    if err := db.Table("reviews").
-        Select("reviews.id, reviews.movie_id, reviews.user_id, reviews.content, reviews.rating, reviews.created_at, reviews.updated_at, movies.title as movie_title").
-        Joins("left join movies on movies.id = reviews.movie_id").
-        Where("reviews.user_id = ?", userID).
-        Scan(&reviews).Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load reviews"})
-        return
-    }
+    var reviews []ReviewWithMovieAndUser
+	if err := db.Table("reviews").
+    	Select(`
+        	reviews.id, reviews.movie_id, movies.title AS movie_title,
+        	reviews.user_id, users.name AS user_name, users.avatar AS user_avatar,
+        	reviews.content, reviews.rating, reviews.created_at, reviews.updated_at
+    	`).
+    	Joins("LEFT JOIN movies ON movies.id = reviews.movie_id").
+    	Joins("LEFT JOIN users ON users.id = reviews.user_id").
+    	Where("reviews.user_id = ?", userID).
+    	Scan(&reviews).Error; err != nil {
+    	c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load reviews"})
+    	return
+	}
 
     c.JSON(http.StatusOK, reviews)
 }
@@ -211,17 +239,22 @@ func GetMyReviews(c *gin.Context, db *gorm.DB) {
     }
     userID := uid.(uint)
 
-    var reviews []ReviewWithMovie
-    if err := db.Table("reviews").
-        Select("reviews.id, reviews.movie_id, reviews.user_id, reviews.content, reviews.rating, reviews.created_at, reviews.updated_at, movies.title as movie_title").
-        Joins("left join movies on movies.id = reviews.movie_id").
-        Where("reviews.user_id = ?", userID).
-        Scan(&reviews).Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load reviews"})
-        return
-    }
+    var reviews []ReviewWithMovieAndUser
+	if err := db.Table("reviews").
+    	Select(`
+        	reviews.id, reviews.movie_id, movies.title AS movie_title,
+        	reviews.user_id, users.name AS user_name, users.avatar AS user_avatar,
+        	reviews.content, reviews.rating, reviews.created_at, reviews.updated_at
+    	`).
+    	Joins("LEFT JOIN movies ON movies.id = reviews.movie_id").
+    	Joins("LEFT JOIN users ON users.id = reviews.user_id").
+    	Where("reviews.user_id = ?", userID).
+    	Scan(&reviews).Error; err != nil {
+    	c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load reviews"})
+    	return
+	}
 
-    c.JSON(http.StatusOK, reviews)
+	c.JSON(http.StatusOK, reviews)
 }
 
 
