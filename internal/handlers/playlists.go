@@ -58,6 +58,12 @@ func GetPlaylist(c *gin.Context, db *gorm.DB) {
         return
     }
 
+	var owner models.User
+    if err := db.First(&owner, playlist.OwnerID).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load owner"})
+        return
+    }
+
     type MovieWithDescription struct {
         models.Movie
         Description string `json:"description"`
@@ -78,6 +84,7 @@ func GetPlaylist(c *gin.Context, db *gorm.DB) {
         "name":    playlist.Name,
         "ownerId": playlist.OwnerID,
         "movies":  movies,
+		"owner_name": owner.Name,
     })
 }
 
