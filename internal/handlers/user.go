@@ -317,7 +317,7 @@ func deleteAvatarFile(avatarURL string) error {
 		return nil
 	}
 
-	filePath := "../../../totallyweb" + avatarURL
+	filePath := "../../../totallyweb/public" + avatarURL
 
 	fmt.Printf("Deleting: %s\n", filePath)
 
@@ -341,7 +341,7 @@ func UploadAvatar(c *gin.Context, db *gorm.DB) {
 	}
 
 	// create an individual user directory
-	basePath := "../../../totallyweb/uploads/avatars"
+	basePath := "../../../totallyweb/public/uploads/avatars"
 	userFolder := fmt.Sprintf("%s/%v", basePath, userID)
 
 	if err := os.MkdirAll(userFolder, 0755); err != nil {
