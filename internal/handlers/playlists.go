@@ -27,7 +27,7 @@ func CreatePlaylist(c *gin.Context, db *gorm.DB) {
 	}
 
 	if req.Cover == "" {
-		req.Cover = "/static/src/default-playlist.jpg"
+		req.Cover = "/src/default-playlist.jpg"
 	}
 
 	playlist := models.Playlist{
@@ -50,44 +50,43 @@ func CreatePlaylist(c *gin.Context, db *gorm.DB) {
 
 // GET /api/playlists/:id
 func GetPlaylist(c *gin.Context, db *gorm.DB) {
-    id := c.Param("id")
+	id := c.Param("id")
 
-    var playlist models.Playlist
-    if err := db.First(&playlist, id).Error; err != nil {
-        c.JSON(http.StatusNotFound, gin.H{"error": "playlist not found"})
-        return
-    }
+	var playlist models.Playlist
+	if err := db.First(&playlist, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "playlist not found"})
+		return
+	}
 
 	var owner models.User
-    if err := db.First(&owner, playlist.OwnerID).Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load owner"})
-        return
-    }
+	if err := db.First(&owner, playlist.OwnerID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load owner"})
+		return
+	}
 
-    type MovieWithDescription struct {
-        models.Movie
-        Description string `json:"description"`
-    }
+	type MovieWithDescription struct {
+		models.Movie
+		Description string `json:"description"`
+	}
 
-    var movies []MovieWithDescription
-    if err := db.Table("movies").
-        Select("movies.*, playlist_movies.description").
-        Joins("JOIN playlist_movies ON playlist_movies.movie_id = movies.id").
-        Where("playlist_movies.playlist_id = ?", playlist.ID).
-        Scan(&movies).Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load movies"})
-        return
-    }
+	var movies []MovieWithDescription
+	if err := db.Table("movies").
+		Select("movies.*, playlist_movies.description").
+		Joins("JOIN playlist_movies ON playlist_movies.movie_id = movies.id").
+		Where("playlist_movies.playlist_id = ?", playlist.ID).
+		Scan(&movies).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load movies"})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{
-        "id":      playlist.ID,
-        "name":    playlist.Name,
-        "ownerId": playlist.OwnerID,
-        "movies":  movies,
+	c.JSON(http.StatusOK, gin.H{
+		"id":         playlist.ID,
+		"name":       playlist.Name,
+		"ownerId":    playlist.OwnerID,
+		"movies":     movies,
 		"owner_name": owner.Name,
-    })
+	})
 }
-
 
 // POST /api/playlists/:id/add
 func AddMovieToPlaylist(c *gin.Context, db *gorm.DB) {

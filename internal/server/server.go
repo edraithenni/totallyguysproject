@@ -65,6 +65,7 @@ func NewServer(db *gorm.DB) *Server {
 	r.Static("/legacy", legacyPath)
 
 	r.Static("/uploads", filepath.Join("..", "..", "..", "totallyweb", "public", "uploads"))
+
 	// next js host
 	nextURL, _ := url.Parse("http://localhost:3000")
 	r.Any("/app/*path", func(c *gin.Context) {
