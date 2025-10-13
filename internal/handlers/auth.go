@@ -231,3 +231,73 @@ func VerifyEmail(c *gin.Context, db *gorm.DB) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "email verified successfully"})
 }
+
+
+//password reset funcs 
+// POST /api/auth/forgot-password
+func ForgotPassword(c *gin.Context, db *gorm.DB) {
+	var req struct {
+		Email string `json:"email"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+
+	var user models.User
+	if err := db.Where("email = ?", req.Email).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	code := utils.GenerateVerificationCode(6)
+	user.VerificationCode = code
+	db.Save(&user)
+
+	fmt.Printf("Password reset code for %s: %s\n", user.Email, code)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "verification code sent (check console for verification code)",
+	})
+}
+
+// POST /api/auth/reset-password
+func ResetPassword(c *gin.Context, db *gorm.DB) {
+	var req struct {
+		Email       string `json:"email"`
+		Code        string `json:"code"`
+		NewPassword string `json:"new_password"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	if utf8.RuneCountInString(req.NewPassword) < 6 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "password must be at least 6 characters"})
+		return
+	}
+
+	email := strings.TrimSpace(strings.ToLower(req.Email))
+	var user models.User
+	if err := db.Where("email = ?", email).First(&user).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid code or email"})
+		return
+	}
+
+	if user.VerificationCode == "" || user.VerificationCode != req.Code {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired code"})
+		return
+	}
+
+	hashed, _ := utils.HashPassword(req.NewPassword)
+	user.Password = hashed
+	user.VerificationCode = ""
+	db.Save(&user)
+
+	c.JSON(http.StatusOK, gin.H{"message": "password reset successful"})
+}

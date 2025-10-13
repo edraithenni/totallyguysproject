@@ -137,6 +137,9 @@ func NewServer(db *gorm.DB) *Server {
 		api.POST("/auth/login", func(c *gin.Context) { handlers.Login(c, db) })
 		api.POST("/auth/logout", handlers.Logout)
 		api.POST("/auth/verify", func(c *gin.Context) { handlers.VerifyEmail(c, db) })
+		// Password recovery
+		api.POST("/auth/forgot-password", func(c *gin.Context) { handlers.ForgotPassword(c, db) })
+		api.POST("/auth/reset-password", func(c *gin.Context) { handlers.ResetPassword(c, db) })
 
 		user := api.Group("/users")
 		{
