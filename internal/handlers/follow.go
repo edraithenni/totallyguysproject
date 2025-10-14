@@ -7,10 +7,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"totallyguysproject/internal/ws"
+	"fmt"
+	"log"
 )
 
 // POST /users/:id/follow
-func FollowUser(c *gin.Context, db *gorm.DB) {
+func FollowUser(c *gin.Context, db *gorm.DB,  hub *ws.Hub) {
 	uid, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
@@ -57,6 +60,27 @@ func FollowUser(c *gin.Context, db *gorm.DB) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to follow"})
 		return
 	}
+
+	var followerUser, targetUser models.User
+	if err := db.First(&followerUser, myID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot get follower info"})
+		return
+	}
+	if err := db.First(&targetUser, targetID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot get target user info"})
+		return
+	}
+
+	msg := map[string]interface{}{
+		"type":         "follow",
+		"follower_id":  myID,
+		"follower_name": followerUser.Name,
+		"text":         fmt.Sprintf("%s started following you", followerUser.Name),
+	}
+
+	log.Println("Sending follow notification to:", targetID)
+
+	hub.SendToMany([]uint{targetID}, msg)
 
 	c.JSON(http.StatusOK, gin.H{"message": "followed"})
 }

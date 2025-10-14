@@ -9,6 +9,7 @@ import (
 	"totallyguysproject/internal/ws"
 	"fmt"
 	"time"
+	"log"
 )
 
 type ReviewWithMovie struct {
@@ -88,8 +89,24 @@ func CreateReview(c *gin.Context, db *gorm.DB, hub *ws.Hub) {
 			followerIDs = append(followerIDs, f.FollowerID)
 		}
 
-		msg := fmt.Sprintf("User %d wrote review on film %d", userID, movieID)
+		var author models.User
+		if err := db.First(&author, userID).Error; err != nil {
+    		log.Println("no author info:", err)
+		}
+
+		msg := map[string]interface{}{
+    		"type": "review",
+    		"author_id": userID,
+    		"author_name": author.Name,
+    		"movie_id": movieID,
+    		"movie_title": movie.Title,
+    		"text": fmt.Sprintf("%s wrote a new review for a movie «%s»", author.Name, movie.Title),
+		}
+
 		hub.SendToMany(followerIDs, msg)
+
+		//msg := fmt.Sprintf("User %d wrote review on film %d", userID, movieID)
+		//hub.SendToMany(followerIDs, msg)
 	}
 
 	c.JSON(http.StatusCreated, review)

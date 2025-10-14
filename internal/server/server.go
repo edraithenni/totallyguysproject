@@ -13,7 +13,7 @@ import (
 	"time"
 	"totallyguysproject/internal/handlers"
 	"totallyguysproject/internal/ws"
-
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"gorm.io/gorm"
@@ -90,6 +90,7 @@ func NewServer(db *gorm.DB) *Server {
 			defer hub.RemoveClient(userID, conn)
 			for {
 				if _, _, err := conn.ReadMessage(); err != nil {
+					fmt.Println("WS read error for user", userID, ":", err)
 					break
 				}
 			}
@@ -162,7 +163,7 @@ func NewServer(db *gorm.DB) *Server {
 				// follow/unfollow other users
 				userAuth.GET("/me/followers", func(c *gin.Context) { handlers.GetMyFollowers(c, db) })
 				userAuth.GET("/me/following", func(c *gin.Context) { handlers.GetMyFollowing(c, db) })
-				userAuth.POST("/:id/follow", func(c *gin.Context) { handlers.FollowUser(c, db) })
+				userAuth.POST("/:id/follow", func(c *gin.Context) { handlers.FollowUser(c, db, hub) })
 				userAuth.DELETE("/:id/follow", func(c *gin.Context) { handlers.UnfollowUser(c, db) })
 				userAuth.GET("/:id/is-following", func(c *gin.Context) { handlers.CheckIsFollowing(c, db) })
 

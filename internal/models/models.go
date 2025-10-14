@@ -82,3 +82,13 @@ type PlaylistMovie struct {
 func (PlaylistMovie) TableName() string {
 	return "playlist_movies"
 }
+
+//type Notification struct {
+  //  ID        uint      `gorm:"primaryKey"`
+   // UserID    uint      
+    //Type      string    // "follow", "review", ...
+    //Data      string    
+    //Read      bool      `gorm:"default:false"`
+    //CreatedAt time.Time
+//}
+
