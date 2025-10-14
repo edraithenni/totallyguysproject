@@ -6,11 +6,14 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strconv"
-	"totallyguysproject/internal/models"
 	"os"
-	"github.com/joho/godotenv"
+	"sort"
+	"strconv"
+	"strings"
+	"totallyguysproject/internal/models"
+
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"gorm.io/gorm"
 )
 
@@ -19,22 +22,51 @@ var omdbAPIKey = os.Getenv("OMDB_API")
 
 // GET /api/movies/search?title=...
 func SearchAndSaveMovie(c *gin.Context, db *gorm.DB) {
-	title := c.Query("title")
+	title := strings.TrimSpace(c.Query("title"))
 	if title == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "title required"})
 		return
 	}
 
+	exactMatch := c.Query("exact") == "true"
+	//looking for exact match in db first
 	var cached []models.Movie
-	if err := db.Where("title LIKE ?", "%"+title+"%").Find(&cached).Error; err == nil && len(cached) > 0 {
+	query := db.Model(&models.Movie{})
+
+	if exactMatch {
+		query = query.Where("LOWER(title) = LOWER(?)", title)
+	} else {
+		query = query.Where("title ILIKE ? OR title ILIKE ?",
+			title+"%",
+			"% "+title+"%")
+	}
+
+	if err := query.Find(&cached).Error; err == nil && len(cached) > 0 {
+		//sorting by relevance
+		sort.Slice(cached, func(i, j int) bool {
+			iTitle := strings.ToLower(cached[i].Title)
+			jTitle := strings.ToLower(cached[j].Title)
+
+			//Priority: exact match > starts with > contains
+			if iTitle == strings.ToLower(title) && jTitle != strings.ToLower(title) {
+				return true
+			}
+			if strings.HasPrefix(iTitle, strings.ToLower(title)) &&
+				!strings.HasPrefix(jTitle, strings.ToLower(title)) {
+				return true
+			}
+			return cached[i].Title < cached[j].Title
+		})
+
 		results := make([]interface{}, len(cached))
 		for i, m := range cached {
 			results[i] = struct {
-				ID     uint   `json:"id"`
-				OMDBID string `json:"omdb_id"`
-				Title  string `json:"title"`
-				Year   string `json:"year"`
-				Poster string `json:"poster"`
+				ID        uint   `json:"id"`
+				OMDBID    string `json:"omdb_id"`
+				Title     string `json:"title"`
+				Year      string `json:"year"`
+				Poster    string `json:"poster"`
+				Relevance string `json:"relevance,omitempty"`
 			}{
 				ID:     m.ID,
 				OMDBID: m.OMDBID,
@@ -43,13 +75,23 @@ func SearchAndSaveMovie(c *gin.Context, db *gorm.DB) {
 				Poster: m.Poster,
 			}
 		}
-		c.JSON(http.StatusOK, gin.H{"Search": results})
+		c.JSON(http.StatusOK, gin.H{
+			"Search": results,
+			"source": "database",
+			"total":  len(results),
+		})
 		return
 	}
 
 	// not in db -> load from OMDb
 	escapedTitle := url.QueryEscape(title)
-	omdbURL := fmt.Sprintf("http://www.omdbapi.com/?apikey=%s&s=%s", omdbAPIKey, escapedTitle)
+	var omdbURL string
+	if exactMatch {
+		omdbURL = fmt.Sprintf("http://www.omdbapi.com/?apikey=%s&s=%s&type=movie", omdbAPIKey, escapedTitle)
+	} else {
+		// regular search with pagination
+		omdbURL = fmt.Sprintf("http://www.omdbapi.com/?apikey=%s&s=%s&type=movie&page=1", omdbAPIKey, escapedTitle)
+	}
 
 	resp, err := http.Get(omdbURL)
 	if err != nil {
@@ -66,6 +108,14 @@ func SearchAndSaveMovie(c *gin.Context, db *gorm.DB) {
 	}
 
 	if omdbResp["Response"] != "True" {
+		if errorMsg, ok := omdbResp["Error"].(string); ok && strings.Contains(errorMsg, "not found") {
+			c.JSON(http.StatusOK, gin.H{
+				"Search": []interface{}{},
+				"source": "omdb",
+				"total":  0,
+			})
+			return
+		}
 		c.JSON(http.StatusNotFound, gin.H{"error": omdbResp["Error"]})
 		return
 	}
@@ -75,6 +125,28 @@ func SearchAndSaveMovie(c *gin.Context, db *gorm.DB) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "unexpected OMDb response"})
 		return
 	}
+
+	//sorting OMDb results by relevance
+	sort.Slice(moviesData, func(i, j int) bool {
+		iMap, iOk := moviesData[i].(map[string]interface{})
+		jMap, jOk := moviesData[j].(map[string]interface{})
+		if !iOk || !jOk {
+			return false
+		}
+
+		iTitle := strings.ToLower(fmt.Sprintf("%v", iMap["Title"]))
+		jTitle := strings.ToLower(fmt.Sprintf("%v", jMap["Title"]))
+		searchTerm := strings.ToLower(title)
+
+		//Priority: exact match > starts with > contains
+		if iTitle == searchTerm && jTitle != searchTerm {
+			return true
+		}
+		if strings.HasPrefix(iTitle, searchTerm) && !strings.HasPrefix(jTitle, searchTerm) {
+			return true
+		}
+		return iTitle < jTitle
+	})
 
 	var movies []models.Movie
 	for _, m := range moviesData {
@@ -111,7 +183,11 @@ func SearchAndSaveMovie(c *gin.Context, db *gorm.DB) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"Search": results})
+	c.JSON(http.StatusOK, gin.H{
+		"Search": results,
+		"source": "omdb",
+		"total":  len(results),
+	})
 }
 
 // GET /api/movies/:id  db/local id
@@ -147,13 +223,13 @@ func GetMovie(c *gin.Context, db *gorm.DB) {
 		resp, err := http.Get(detailsURL)
 		if err == nil {
 			defer resp.Body.Close()
-			
+
 			body, _ := io.ReadAll(resp.Body)
 			var details map[string]interface{}
 			if err := json.Unmarshal(body, &details); err == nil && details["Response"] == "True" {
-			
+
 				updates := make(map[string]interface{})
-				
+
 				if movie.Plot == "" {
 					movie.Plot = fmt.Sprintf("%v", details["Plot"])
 					updates["plot"] = movie.Plot
@@ -174,7 +250,7 @@ func GetMovie(c *gin.Context, db *gorm.DB) {
 					movie.Rating = fmt.Sprintf("%v", details["imdbRating"])
 					updates["rating"] = movie.Rating
 				}
-				
+
 				if len(updates) > 0 {
 					db.Model(&movie).Updates(updates)
 				}
@@ -209,74 +285,77 @@ func GetMovie(c *gin.Context, db *gorm.DB) {
 
 // GET /api/movies/load-by-genre?genre=Action&page=1
 func LoadMoviesByGenre(c *gin.Context, db *gorm.DB) {
-    genre := c.Query("genre")
-    if genre == "" {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "genre required"})
-        return
-    }
+	genre := c.Query("genre")
+	if genre == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "genre required"})
+		return
+	}
 
-    pageStr := c.Query("page")
-    page, _ := strconv.Atoi(pageStr)
-    if page < 1 {
-        page = 1
-    }
+	pageStr := c.Query("page")
+	page, _ := strconv.Atoi(pageStr)
+	if page < 1 {
+		page = 1
+	}
 
-    omdbURL := fmt.Sprintf("http://www.omdbapi.com/?apikey=%s&s=%s&type=movie&page=%d", omdbAPIKey, url.QueryEscape(genre), page)
-    resp, err := http.Get(omdbURL)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch OMDb"})
-        return
-    }
-    defer resp.Body.Close()
+	omdbURL := fmt.Sprintf("http://www.omdbapi.com/?apikey=%s&s=%s&type=movie&page=%d", omdbAPIKey, url.QueryEscape(genre), page)
+	resp, err := http.Get(omdbURL)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch OMDb"})
+		return
+	}
+	defer resp.Body.Close()
 
-    body, _ := io.ReadAll(resp.Body)
-    var omdbResp map[string]interface{}
-    if err := json.Unmarshal(body, &omdbResp); err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to parse OMDb"})
-        return
-    }
+	body, _ := io.ReadAll(resp.Body)
+	var omdbResp map[string]interface{}
+	if err := json.Unmarshal(body, &omdbResp); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to parse OMDb"})
+		return
+	}
 
-    if omdbResp["Response"] != "True" {
-        c.JSON(http.StatusNotFound, gin.H{"error": omdbResp["Error"]})
-        return
-    }
+	if omdbResp["Response"] != "True" {
+		c.JSON(http.StatusNotFound, gin.H{"error": omdbResp["Error"]})
+		return
+	}
 
-    searchResults, ok := omdbResp["Search"].([]interface{})
-    if !ok {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "unexpected OMDb response"})
-        return
-    }
+	searchResults, ok := omdbResp["Search"].([]interface{})
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "unexpected OMDb response"})
+		return
+	}
 
-    var movies []models.Movie
-    for _, m := range searchResults {
-        mMap := m.(map[string]interface{})
-        omdbID := fmt.Sprintf("%v", mMap["imdbID"])
+	var movies []models.Movie
+	for _, m := range searchResults {
+		mMap := m.(map[string]interface{})
+		omdbID := fmt.Sprintf("%v", mMap["imdbID"])
 
-        detailsURL := fmt.Sprintf("http://www.omdbapi.com/?apikey=%s&i=%s", omdbAPIKey, omdbID)
-        resp2, err := http.Get(detailsURL)
-        if err != nil { continue }
-        body2, _ := io.ReadAll(resp2.Body)
-        resp2.Body.Close()
+		detailsURL := fmt.Sprintf("http://www.omdbapi.com/?apikey=%s&i=%s", omdbAPIKey, omdbID)
+		resp2, err := http.Get(detailsURL)
+		if err != nil {
+			continue
+		}
+		body2, _ := io.ReadAll(resp2.Body)
+		resp2.Body.Close()
 
-        var details map[string]interface{}
-        if err := json.Unmarshal(body2, &details); err != nil { continue }
+		var details map[string]interface{}
+		if err := json.Unmarshal(body2, &details); err != nil {
+			continue
+		}
 
-        newMovie := models.Movie{
-            Title:  fmt.Sprintf("%v", details["Title"]),
-            Year:   fmt.Sprintf("%v", details["Year"]),
-            OMDBID: omdbID,
-            Poster: fmt.Sprintf("%v", details["Poster"]),
-            Genre:  fmt.Sprintf("%v", details["Genre"]),
-            Plot:   fmt.Sprintf("%v", details["Plot"]),
-            Director: fmt.Sprintf("%v", details["Director"]),
-            Actors: fmt.Sprintf("%v", details["Actors"]),
-            Rating: fmt.Sprintf("%v", details["imdbRating"]),
-        }
+		newMovie := models.Movie{
+			Title:    fmt.Sprintf("%v", details["Title"]),
+			Year:     fmt.Sprintf("%v", details["Year"]),
+			OMDBID:   omdbID,
+			Poster:   fmt.Sprintf("%v", details["Poster"]),
+			Genre:    fmt.Sprintf("%v", details["Genre"]),
+			Plot:     fmt.Sprintf("%v", details["Plot"]),
+			Director: fmt.Sprintf("%v", details["Director"]),
+			Actors:   fmt.Sprintf("%v", details["Actors"]),
+			Rating:   fmt.Sprintf("%v", details["imdbRating"]),
+		}
 
-        db.FirstOrCreate(&newMovie, models.Movie{OMDBID: omdbID})
-        movies = append(movies, newMovie)
-    }
+		db.FirstOrCreate(&newMovie, models.Movie{OMDBID: omdbID})
+		movies = append(movies, newMovie)
+	}
 
-    c.JSON(http.StatusOK, movies)
+	c.JSON(http.StatusOK, movies)
 }
-
