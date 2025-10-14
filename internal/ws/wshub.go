@@ -70,3 +70,13 @@ func (h *Hub) SendToMany(userIDs []uint, msg interface{}) {
 		h.Send(id, msg)
 	}
 }
+
+func (h *Hub) GetClientIDs() []uint {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	var ids []uint
+	for uid := range h.clients {
+		ids = append(ids, uid)
+	}
+	return ids
+}
