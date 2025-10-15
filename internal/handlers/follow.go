@@ -35,53 +35,52 @@ func FollowUser(c *gin.Context, db *gorm.DB, hub *ws.Hub) {
 
 	var existing models.Follow
 	err = db.Unscoped().Where("follower_id = ? AND followed_id = ?", myID, targetID).First(&existing).Error
+
+	notify := false
+
 	if err == nil {
 		if existing.DeletedAt.Valid {
 			if err := db.Unscoped().Model(&existing).Update("deleted_at", nil).Error; err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to restore follow"})
 				return
 			}
-			c.JSON(http.StatusOK, gin.H{"message": "followed"})
+			notify = true
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "already following"})
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": "already following"})
-		return
-	}
-	if err != gorm.ErrRecordNotFound {
+	} else if err == gorm.ErrRecordNotFound {
+		follow := models.Follow{
+			FollowerID: myID,
+			FollowedID: targetID,
+		}
+		if err := db.Create(&follow).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to follow"})
+			return
+		}
+		notify = true
+	} else {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "db error"})
 		return
 	}
 
-	follow := models.Follow{
-		FollowerID: myID,
-		FollowedID: targetID,
+	if notify {
+		var followerUser models.User
+		if err := db.First(&followerUser, myID).Error; err == nil {
+			msg := map[string]interface{}{
+				"type":          "follow",
+				"follower_id":   myID,
+				"follower_name": followerUser.Name,
+				"text":          fmt.Sprintf("%s started following you", followerUser.Name),
+			}
+			hub.Send(targetID, msg)
+		}
 	}
-	if err := db.Create(&follow).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to follow"})
-		return
-	}
-
-	var followerUser, targetUser models.User
-	if err := db.First(&followerUser, myID).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot get follower info"})
-		return
-	}
-	if err := db.First(&targetUser, targetID).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot get target user info"})
-		return
-	}
-
-	msg := map[string]interface{}{
-		"type":          "follow",
-		"follower_id":   myID,
-		"follower_name": followerUser.Name,
-		"text":          fmt.Sprintf("%s started following you", followerUser.Name),
-	}
-
-	hub.Send(targetID, msg)
 
 	c.JSON(http.StatusOK, gin.H{"message": "followed"})
 }
+
+
 
 // DELETE /users/:id/follow
 func UnfollowUser(c *gin.Context, db *gorm.DB) {

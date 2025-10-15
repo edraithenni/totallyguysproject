@@ -274,4 +274,3 @@ func GetMyReviews(c *gin.Context, db *gorm.DB) {
 	c.JSON(http.StatusOK, reviews)
 }
 
-
