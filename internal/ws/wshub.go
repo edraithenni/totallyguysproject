@@ -5,16 +5,21 @@ import (
 	"fmt"
 	"sync"
 	"github.com/gorilla/websocket"
+	"gorm.io/gorm"
+	"totallyguysproject/internal/models"
+	"time"
 )
 
 type Hub struct {
 	clients map[uint]map[*websocket.Conn]bool
 	mu      sync.RWMutex
+	db      *gorm.DB
 }
 
-func NewHub() *Hub {
+func NewHub(db *gorm.DB) *Hub {
 	return &Hub{
 		clients: make(map[uint]map[*websocket.Conn]bool),
+		db:      db,
 	}
 }
 
@@ -26,7 +31,6 @@ func (h *Hub) AddClient(userID uint, conn *websocket.Conn) {
 	h.clients[userID][conn] = true
 	h.mu.Unlock()
 	fmt.Printf("User %d connected\n", userID)
-	fmt.Println("Clients after add:", h.clients)
 }
 
 func (h *Hub) RemoveClient(userID uint, conn *websocket.Conn) {
@@ -39,28 +43,46 @@ func (h *Hub) RemoveClient(userID uint, conn *websocket.Conn) {
 	}
 	h.mu.Unlock()
 	fmt.Printf("User %d disconnected\n", userID)
-	fmt.Println("Clients after add:", h.clients)
 }
 
 func (h *Hub) Send(userID uint, msg interface{}) {
-	h.mu.RLock()
-	conns, ok := h.clients[userID]
-	h.mu.RUnlock()
-	if !ok {
-		return
-	}
-
 	data, err := json.Marshal(msg)
 	if err != nil {
 		fmt.Println("ws marshal error:", err)
 		return
 	}
 
-	for conn := range conns {
-		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
-			fmt.Println("ws write error:", err)
-			h.RemoveClient(userID, conn)
-			conn.Close()
+	h.mu.RLock()
+	conns, online := h.clients[userID]
+	h.mu.RUnlock()
+	//if online - send without db caching, else - store in db until target user is online
+	if online {
+		for conn := range conns {
+			if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+				fmt.Println("ws write error:", err)
+				h.RemoveClient(userID, conn)
+				conn.Close()
+			}
+		}
+	} else {
+		notif := models.Notification{
+			UserID: userID,
+			Type:   msgTypeFrom(msg),
+			Data:   string(data),
+			Read:   false,
+		}
+		if err := h.db.Create(&notif).Error; err != nil {
+			fmt.Println("failed to save notification:", err)
+		}
+	}
+}
+
+func (h *Hub) SendPendingFromDB(userID uint, conn *websocket.Conn) {
+	var notifs []models.Notification
+	if err := h.db.Where("user_id = ? AND deleted_at IS NULL", userID).Find(&notifs).Error; err == nil {
+		for _, n := range notifs {
+			conn.WriteMessage(websocket.TextMessage, []byte(n.Data))
+			h.db.Delete(&n) // soft delete, StartNotificationCleanup() for deleting garbage every hour
 		}
 	}
 }
@@ -80,3 +102,22 @@ func (h *Hub) GetClientIDs() []uint {
 	}
 	return ids
 }
+
+func StartNotificationCleanup(db *gorm.DB) {
+	ticker := time.NewTicker(time.Hour)
+	go func() {
+		for range ticker.C {
+			db.Unscoped().Where("deleted_at IS NOT NULL").Delete(&models.Notification{})
+		}
+	}()
+}
+
+func msgTypeFrom(msg interface{}) string {
+	if m, ok := msg.(map[string]interface{}); ok {
+		if t, exists := m["type"].(string); exists {
+			return t
+		}
+	}
+	return "unknown"
+}
+

@@ -81,7 +81,6 @@ func FollowUser(c *gin.Context, db *gorm.DB, hub *ws.Hub) {
 }
 
 
-
 // DELETE /users/:id/follow
 func UnfollowUser(c *gin.Context, db *gorm.DB) {
 	uid, exists := c.Get("userID")

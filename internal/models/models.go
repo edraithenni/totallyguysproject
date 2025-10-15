@@ -84,10 +84,11 @@ func (PlaylistMovie) TableName() string {
 }
 
 type Notification struct {
+	gorm.Model
     ID        uint      `gorm:"primaryKey"`
     UserID    uint      
     Type      string    // "follow", "review", ...
     Data      string    
-    Read      bool      `gorm:"default:false"`
+    Read      bool      `gorm:"default:false"` //not used
 }
 

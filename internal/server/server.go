@@ -13,7 +13,6 @@ import (
 	"time"
 	"totallyguysproject/internal/handlers"
 	"totallyguysproject/internal/ws"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"gorm.io/gorm"
@@ -59,7 +58,8 @@ func StartNextDev() {
 
 func NewServer(db *gorm.DB) *Server {
 	r := gin.Default()
-	hub := ws.NewHub()
+	hub := ws.NewHub(db)
+	ws.StartNotificationCleanup(db) //deletes checked notifications every hour
 	// web static (legacy static content)
 	legacyPath := filepath.Join("..", "..", "..", "totallyweb", "public", "legacy", "web")
 	r.Static("/legacy", legacyPath)
@@ -84,13 +84,15 @@ func NewServer(db *gorm.DB) *Server {
 		if err != nil {
 			return
 		}
+
 		hub.AddClient(userID, conn)
+
+		hub.SendPendingFromDB(userID, conn)
 
 		go func() {
 			defer hub.RemoveClient(userID, conn)
 			for {
 				if _, _, err := conn.ReadMessage(); err != nil {
-					fmt.Println("WS read error for user", userID, ":", err)
 					break
 				}
 			}
