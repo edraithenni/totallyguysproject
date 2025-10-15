@@ -108,9 +108,14 @@ func StartNotificationCleanup(db *gorm.DB) {
 	go func() {
 		for range ticker.C {
 			db.Unscoped().Where("deleted_at IS NOT NULL").Delete(&models.Notification{})
+
+			db.Unscoped().
+    		Where("deleted_at IS NULL AND created_at < ?", time.Now().AddDate(0, 0, -30)).
+    		Delete(&models.Notification{})
 		}
 	}()
 }
+
 
 func msgTypeFrom(msg interface{}) string {
 	if m, ok := msg.(map[string]interface{}); ok {
