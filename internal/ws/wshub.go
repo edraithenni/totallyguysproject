@@ -116,7 +116,6 @@ func StartNotificationCleanup(db *gorm.DB) {
 	}()
 }
 
-
 func msgTypeFrom(msg interface{}) string {
 	if m, ok := msg.(map[string]interface{}); ok {
 		if t, exists := m["type"].(string); exists {
