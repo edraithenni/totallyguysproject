@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"totallyguysproject/internal/models"
-
+	"encoding/csv"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"gorm.io/gorm"
@@ -285,32 +285,114 @@ func GetMovie(c *gin.Context, db *gorm.DB) {
 
 // GET /api/movies/load-by-genre?genre=Action&page=1
 func LoadMoviesByGenre(c *gin.Context, db *gorm.DB) {
-	genre := c.Query("genre")
-	if genre == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "genre required"})
-		return
+    genre := c.Query("genre")
+    if genre == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "genre required"})
+        return
+    }
+
+    pageStr := c.Query("page")
+    page, _ := strconv.Atoi(pageStr)
+    if page < 1 {
+        page = 1
+    }
+
+    limit := 5
+    offset := (page - 1) * limit
+
+    // CSV 
+    filePath := fmt.Sprintf("../../data/%s.csv", strings.ToLower(genre))
+    f, err := os.Open(filePath)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "genre CSV not found"})
+        return
+    }
+    defer f.Close()
+
+    reader := csv.NewReader(f)
+    rows, _ := reader.ReadAll()
+
+    type csvMovie struct {
+        Title string
+        Year  string
+    }
+    var csvMovies []csvMovie
+    for i, row := range rows {
+        if i == 0 {
+            continue 
+        }
+        if len(row) < 3 {
+            continue
+        }
+        csvMovies = append(csvMovies, csvMovie{
+            Title: row[1],
+            Year:  row[2],
+        })
+    }
+
+    start := offset
+    end := offset + limit
+    if start >= len(csvMovies) {
+        c.JSON(http.StatusOK, []models.Movie{})
+        return
+    }
+    if end > len(csvMovies) {
+        end = len(csvMovies)
+    }
+    pageMovies := csvMovies[start:end]
+
+    var movies []models.Movie
+    for _, m := range pageMovies {
+        var dbMovie models.Movie
+        if err := db.Where("title = ? AND year = ?", m.Title, m.Year).First(&dbMovie).Error; err != nil {
+            // fetch OMDb по title+year
+            omdbURL := fmt.Sprintf("http://www.omdbapi.com/?apikey=%s&t=%s&y=%s", omdbAPIKey, url.QueryEscape(m.Title), m.Year)
+            resp, err := http.Get(omdbURL)
+            if err != nil {
+                continue
+            }
+            body, _ := io.ReadAll(resp.Body)
+            resp.Body.Close()
+
+            var omdbResp map[string]interface{}
+            if err := json.Unmarshal(body, &omdbResp); err != nil || omdbResp["Response"] != "True" {
+                continue
+            }
+
+            dbMovie = models.Movie{
+                Title:    m.Title,
+                Year:     m.Year,
+                OMDBID:   fmt.Sprintf("%v", omdbResp["imdbID"]),
+                Poster:   fmt.Sprintf("%v", omdbResp["Poster"]),
+                Plot:     fmt.Sprintf("%v", omdbResp["Plot"]),
+                Genre:    fmt.Sprintf("%v", omdbResp["Genre"]),
+                Director: fmt.Sprintf("%v", omdbResp["Director"]),
+                Actors:   fmt.Sprintf("%v", omdbResp["Actors"]),
+                Rating:   fmt.Sprintf("%v", omdbResp["imdbRating"]),
+            }
+            db.Create(&dbMovie)
+        }
+		
+        movies = append(movies, dbMovie)
+    }
+
+	results := make([]interface{}, len(movies))
+	for i, m := range movies {
+		results[i] = struct {
+			ID     uint   `json:"id"`
+			OMDBID string `json:"omdb_id"`
+			Title  string `json:"title"`
+			Year   string `json:"year"`
+			Poster string `json:"poster"`
+		}{
+			ID:     m.ID,
+			OMDBID: m.OMDBID,
+			Title:  m.Title,
+			Year:   m.Year,
+			Poster: m.Poster,
+		}
 	}
 
-	pageStr := c.Query("page")
-	page, _ := strconv.Atoi(pageStr)
-	if page < 1 {
-		page = 1
-	}
-
-	limit := 20
-	offset := (page - 1) * limit
-
-	var movies []models.Movie
-	if err := db.Where("genre ILIKE ?", "%" + genre + "%").
-		Limit(limit).Offset(offset).Find(&movies).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to query database"})
-		return
-	}
-
-	if len(movies) == 0 {
-		c.JSON(http.StatusOK, []models.Movie{})
-		return
-	}
-
-	c.JSON(http.StatusOK, movies)
+    c.JSON(http.StatusOK, results)
 }
+
