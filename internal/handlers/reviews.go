@@ -1,42 +1,42 @@
 package handlers
 
 import (
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
+	"fmt"
+	"log"
 	"net/http"
 	"strconv"
+	"time"
 	"totallyguysproject/internal/models"
 	"totallyguysproject/internal/ws"
-	"fmt"
-	"time"
-	"log"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type ReviewWithMovie struct {
-    ID        uint      `json:"id"`
-    MovieID   uint      `json:"movie_id"`
-    UserID    uint      `json:"user_id"`
-    Content   string    `json:"content"`
-    Rating    int       `json:"rating"`
-    CreatedAt time.Time `json:"created_at"`
-    UpdatedAt time.Time `json:"updated_at"`
-    
-    MovieTitle string `json:"movie_title"`
+	ID        uint      `json:"id"`
+	MovieID   uint      `json:"movie_id"`
+	UserID    uint      `json:"user_id"`
+	Content   string    `json:"content"`
+	Rating    int       `json:"rating"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+
+	MovieTitle string `json:"movie_title"`
 }
 
 type ReviewWithMovieAndUser struct {
-    ID          uint      `json:"id"`
-    MovieID     uint      `json:"movie_id"`
-    MovieTitle  string    `json:"movie_title"`
-    UserID      uint      `json:"user_id"`
-    UserName    string    `json:"user_name"`
-    UserAvatar  string    `json:"user_avatar"`
-    Content     string    `json:"content"`
-    Rating      int       `json:"rating"`
-    CreatedAt   time.Time `json:"created_at"`
-    UpdatedAt   time.Time `json:"updated_at"`
+	ID         uint      `json:"id"`
+	MovieID    uint      `json:"movie_id"`
+	MovieTitle string    `json:"movie_title"`
+	UserID     uint      `json:"user_id"`
+	UserName   string    `json:"user_name"`
+	UserAvatar string    `json:"user_avatar"`
+	Content    string    `json:"content"`
+	Rating     int       `json:"rating"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
-
 
 // POST /api/movies/:id/reviews
 func CreateReview(c *gin.Context, db *gorm.DB, hub *ws.Hub) {
@@ -81,7 +81,7 @@ func CreateReview(c *gin.Context, db *gorm.DB, hub *ws.Hub) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create review"})
 		return
 	}
-    
+
 	var followers []models.Follow
 	if err := db.Where("followed_id = ?", userID).Find(&followers).Error; err == nil {
 		followerIDs := make([]uint, 0, len(followers))
@@ -91,16 +91,16 @@ func CreateReview(c *gin.Context, db *gorm.DB, hub *ws.Hub) {
 
 		var author models.User
 		if err := db.First(&author, userID).Error; err != nil {
-    		log.Println("no author info:", err)
+			log.Println("no author info:", err)
 		}
 
 		msg := map[string]interface{}{
-    		"type": "review",
-    		"author_id": userID,
-    		"author_name": author.Name,
-    		"movie_id": movieID,
-    		"movie_title": movie.Title,
-    		"text": fmt.Sprintf("%s wrote a new review for a movie «%s»", author.Name, movie.Title),
+			"type":        "review",
+			"author_id":   userID,
+			"author_name": author.Name,
+			"movie_id":    movieID,
+			"movie_title": movie.Title,
+			"text":        fmt.Sprintf("%s wrote a new review for a movie «%s»", author.Name, movie.Title),
 		}
 
 		hub.SendToMany(followerIDs, msg)
@@ -114,32 +114,77 @@ func CreateReview(c *gin.Context, db *gorm.DB, hub *ws.Hub) {
 
 // GET /api/movies/:id/reviews
 func GetReviewsForMovie(c *gin.Context, db *gorm.DB) {
-    movieIDStr := c.Param("id")
-    movieID64, err := strconv.ParseUint(movieIDStr, 10, 64)
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "invalid movie id"})
-        return
-    }
-    movieID := uint(movieID64)
+	movieIDStr := c.Param("id")
+	movieID64, err := strconv.ParseUint(movieIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid movie id"})
+		return
+	}
+	movieID := uint(movieID64)
 
-    var reviews []ReviewWithMovieAndUser
+	var reviews []ReviewWithMovieAndUser
 	if err := db.Table("reviews").
-    	Select(`
+		Select(`
         	reviews.id, reviews.movie_id, movies.title AS movie_title,
         	reviews.user_id, users.name AS user_name, users.avatar AS user_avatar,
         	reviews.content, reviews.rating, reviews.created_at, reviews.updated_at
     	`).
-    	Joins("LEFT JOIN movies ON movies.id = reviews.movie_id").
-    	Joins("LEFT JOIN users ON users.id = reviews.user_id").
-    	Where("reviews.movie_id = ?", movieID).
-    	Scan(&reviews).Error; err != nil {
-    	c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load reviews"})
-    	return
+		Joins("LEFT JOIN movies ON movies.id = reviews.movie_id").
+		Joins("LEFT JOIN users ON users.id = reviews.user_id").
+		Where("reviews.movie_id = ?", movieID).
+		Scan(&reviews).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load reviews"})
+		return
 	}
 
 	c.JSON(http.StatusOK, reviews)
 }
 
+// GET /api/reviews/:id
+func GetReview(c *gin.Context, db *gorm.DB) {
+
+	reviewIDStr := c.Param("id")
+	rid64, err := strconv.ParseUint(reviewIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid review id"})
+		return
+	}
+	reviewID := uint(rid64)
+
+	var review models.Review
+	if err := db.First(&review, reviewID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "review not found"})
+		return
+	}
+
+	var user models.User
+	if err := db.First(&user, review.UserID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	var movie models.Movie
+	if err := db.First(&movie, review.MovieID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "movie not found"})
+		return
+	}
+
+	var commentsCount int64
+	db.Model(&models.Comment{}).Where("review_id = ?", reviewID).Count(&commentsCount)
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":             review.ID,
+		"user_id":        review.UserID,
+		"user_name":      user.Name,
+		"user_avatar":    user.Avatar,
+		"movie_id":       review.MovieID,
+		"movie_title":    movie.Title,
+		"content":        review.Content,
+		"rating":         review.Rating,
+		"created_at":     review.CreatedAt,
+		"comments_count": commentsCount,
+	})
+}
 
 // PUT /api/reviews/:id
 func UpdateReview(c *gin.Context, db *gorm.DB) {
@@ -227,50 +272,49 @@ func DeleteReview(c *gin.Context, db *gorm.DB) {
 
 // GET /api/users/:id/reviews
 func GetReviewsByUser(c *gin.Context, db *gorm.DB) {
-    userID := c.Param("id")
+	userID := c.Param("id")
 
-    var reviews []ReviewWithMovieAndUser
+	var reviews []ReviewWithMovieAndUser
 	if err := db.Table("reviews").
-    	Select(`
+		Select(`
         	reviews.id, reviews.movie_id, movies.title AS movie_title,
         	reviews.user_id, users.name AS user_name, users.avatar AS user_avatar,
         	reviews.content, reviews.rating, reviews.created_at, reviews.updated_at
     	`).
-    	Joins("LEFT JOIN movies ON movies.id = reviews.movie_id").
-    	Joins("LEFT JOIN users ON users.id = reviews.user_id").
-    	Where("reviews.user_id = ?", userID).
-    	Scan(&reviews).Error; err != nil {
-    	c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load reviews"})
-    	return
-	}
-
-    c.JSON(http.StatusOK, reviews)
-}
-
-// GET /api/users/me/reviews
-func GetMyReviews(c *gin.Context, db *gorm.DB) {
-    uid, ok := c.Get("userID")
-    if !ok {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-        return
-    }
-    userID := uid.(uint)
-
-    var reviews []ReviewWithMovieAndUser
-	if err := db.Table("reviews").
-    	Select(`
-        	reviews.id, reviews.movie_id, movies.title AS movie_title,
-        	reviews.user_id, users.name AS user_name, users.avatar AS user_avatar,
-        	reviews.content, reviews.rating, reviews.created_at, reviews.updated_at
-    	`).
-    	Joins("LEFT JOIN movies ON movies.id = reviews.movie_id").
-    	Joins("LEFT JOIN users ON users.id = reviews.user_id").
-    	Where("reviews.user_id = ?", userID).
-    	Scan(&reviews).Error; err != nil {
-    	c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load reviews"})
-    	return
+		Joins("LEFT JOIN movies ON movies.id = reviews.movie_id").
+		Joins("LEFT JOIN users ON users.id = reviews.user_id").
+		Where("reviews.user_id = ?", userID).
+		Scan(&reviews).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load reviews"})
+		return
 	}
 
 	c.JSON(http.StatusOK, reviews)
 }
 
+// GET /api/users/me/reviews
+func GetMyReviews(c *gin.Context, db *gorm.DB) {
+	uid, ok := c.Get("userID")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	userID := uid.(uint)
+
+	var reviews []ReviewWithMovieAndUser
+	if err := db.Table("reviews").
+		Select(`
+        	reviews.id, reviews.movie_id, movies.title AS movie_title,
+        	reviews.user_id, users.name AS user_name, users.avatar AS user_avatar,
+        	reviews.content, reviews.rating, reviews.created_at, reviews.updated_at
+    	`).
+		Joins("LEFT JOIN movies ON movies.id = reviews.movie_id").
+		Joins("LEFT JOIN users ON users.id = reviews.user_id").
+		Where("reviews.user_id = ?", userID).
+		Scan(&reviews).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load reviews"})
+		return
+	}
+
+	c.JSON(http.StatusOK, reviews)
+}

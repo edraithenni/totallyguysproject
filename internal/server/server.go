@@ -13,6 +13,7 @@ import (
 	"time"
 	"totallyguysproject/internal/handlers"
 	"totallyguysproject/internal/ws"
+
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"gorm.io/gorm"
@@ -123,6 +124,7 @@ func NewServer(db *gorm.DB) *Server {
 		{
 			reviews.PUT("/:id", func(c *gin.Context) { handlers.UpdateReview(c, db) })
 			reviews.DELETE("/:id", func(c *gin.Context) { handlers.DeleteReview(c, db) })
+			reviews.GET("/:id", func(c *gin.Context) { handlers.GetReview(c, db) })
 
 			//comments nested under reviews
 			reviews.GET("/:id/comments", func(c *gin.Context) { handlers.GetCommentsForReview(c, db) })
