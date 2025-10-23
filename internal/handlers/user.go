@@ -97,10 +97,21 @@ func GetCurrentUser(c *gin.Context, db *gorm.DB) {
 	// user playlists for frontend
 	collections := []map[string]interface{}{}
 	for _, p := range user.Playlists {
+		var cover string
+		switch p.Name {
+		case "watched":
+			cover = "/src/watched-playlist.jpg"
+		case "watch-later":
+			cover = "/src/watch-later-playlist.jpg"
+		case "liked":
+			cover = "/src/liked-playlist.jpg"
+		default:
+			cover = p.Cover
+		}
 		collections = append(collections, map[string]interface{}{
 			"id":    p.ID,
 			"name":  p.Name,
-			"cover": "/static/collection-placeholder.png",
+			"cover": cover,
 		})
 	}
 	// user friends for frontend
@@ -213,10 +224,21 @@ func GetProfile(c *gin.Context, db *gorm.DB) {
 
 	playlists := []map[string]interface{}{}
 	for _, p := range user.Playlists {
+		var cover string
+		switch p.Name {
+		case "watched":
+			cover = "/src/watched-playlist.jpg"
+		case "watch-later":
+			cover = "/src/watch-later-playlist.jpg"
+		case "liked":
+			cover = "/src/liked-playlist.jpg"
+		default:
+			cover = p.Cover
+		}
 		playlists = append(playlists, map[string]interface{}{
 			"id":    p.ID,
 			"name":  p.Name,
-			"cover": p.Cover,
+			"cover": cover,
 		})
 	}
 
@@ -409,6 +431,166 @@ func DeleteAvatar(c *gin.Context, db *gorm.DB) {
 	c.JSON(http.StatusOK, gin.H{"avatar": ""})
 }
 
+// @Summary Upload playlist cover
+// @Description Uploads or replaces a cover image for a playlist owned by current user.
+// @Tags playlists
+// @Accept multipart/form-data
+// @Produce json
+// @Param cover formData file true "Cover file"
+// @Param playlist_id path int true "Playlist ID"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /users/me/playlists/{playlist_id}/cover [post]
+func UploadPlaylistCover(c *gin.Context, db *gorm.DB) {
+	userIDInterface, ok := c.Get("userID")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	userID := userIDInterface.(uint)
+
+	playlistIDParam := c.Param("playlist_id")
+	if playlistIDParam == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "playlist_id required"})
+		return
+	}
+
+	pid, err := strconv.ParseUint(playlistIDParam, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid playlist id"})
+		return
+	}
+
+	var playlist models.Playlist
+	if err := db.First(&playlist, uint(pid)).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "playlist not found"})
+		return
+	}
+
+	if playlist.OwnerID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "not allowed"})
+		return
+	}
+	// Запретить изменение обложки для базовых плейлистов
+	if playlist.Name == "watched" || playlist.Name == "watch-later" || playlist.Name == "liked" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Нельзя менять обложку базового плейлиста"})
+		return
+	}
+
+	file, err := c.FormFile("cover")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "file not provided"})
+		return
+	}
+
+	basePath := "../../../totallyweb/public/uploads/playlists"
+	userFolder := fmt.Sprintf("%s/%v", basePath, userID)
+
+	if err := os.MkdirAll(userFolder, 0755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create folder"})
+		return
+	}
+
+	filename := fmt.Sprintf("%d_%s", time.Now().Unix(), file.Filename)
+	savePath := userFolder + "/" + filename
+
+	if err := c.SaveUploadedFile(file, savePath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
+		return
+	}
+
+	coverURL := fmt.Sprintf("/uploads/playlists/%v/%s", userID, filename)
+
+	oldCover := playlist.Cover
+
+	if err := db.Model(&models.Playlist{}).Where("id = ?", playlist.ID).Update("cover", coverURL).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update playlist cover"})
+		return
+	}
+
+	if oldCover != "" {
+		go func(url string) {
+			filePath := "../../../totallyweb/public" + url
+			if _, err := os.Stat(filePath); os.IsNotExist(err) {
+				return
+			}
+			_ = os.Remove(filePath)
+		}(oldCover)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"cover": coverURL})
+}
+
+// @Summary Delete playlist cover
+// @Description Removes cover image from playlist (sets to empty). Only owner can delete.
+// @Tags playlists
+// @Accept json
+// @Produce json
+// @Param playlist_id path int true "Playlist ID"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /users/me/playlists/{playlist_id}/cover [delete]
+func DeletePlaylistCover(c *gin.Context, db *gorm.DB) {
+	userIDInterface, ok := c.Get("userID")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	userID := userIDInterface.(uint)
+
+	playlistIDParam := c.Param("playlist_id")
+	if playlistIDParam == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "playlist_id required"})
+		return
+	}
+
+	pid, err := strconv.ParseUint(playlistIDParam, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid playlist id"})
+		return
+	}
+
+	var playlist models.Playlist
+	if err := db.First(&playlist, uint(pid)).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "playlist not found"})
+		return
+	}
+
+	if playlist.OwnerID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "not allowed"})
+		return
+	}
+	// Запретить удаление обложки для базовых плейлистов
+	if playlist.Name == "watched" || playlist.Name == "watch-later" || playlist.Name == "liked" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Нельзя менять обложку базового плейлиста"})
+		return
+	}
+
+	oldCover := playlist.Cover
+
+	if err := db.Model(&playlist).Update("cover", "").Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update playlist"})
+		return
+	}
+
+	if oldCover != "" {
+		filePath := "../../../totallyweb/public" + oldCover
+		if _, err := os.Stat(filePath); !os.IsNotExist(err) {
+			if err := os.Remove(filePath); err != nil {
+				fmt.Printf("Failed to delete playlist cover file: %v\n", err)
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"cover": ""})
+}
+
 // @Summary Create user (admin)
 // @Description Admin create user(alternative for register if not done yet).
 // @Tags users
@@ -461,9 +643,9 @@ func CreateUser(c *gin.Context, db *gorm.DB) {
 		Name  string
 		Cover string
 	}{
-		{"watch-later", "/static/playlists/watch-later.png"},
-		{"watched", "/static/playlists/watched.png"},
-		{"liked", "/static/playlists/liked.png"},
+		{"watch-later", "/src/watch-later-playlist.jpg"},
+		{"watched", "/src/watched-playlist.jpg"},
+		{"liked", "/src/liked-playlist.jpg"},
 	}
 
 	for _, p := range defaultPlaylists {

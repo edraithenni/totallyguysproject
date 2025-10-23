@@ -161,6 +161,9 @@ func NewServer(db *gorm.DB) *Server {
 				userAuth.PUT("/me", func(c *gin.Context) { handlers.UpdateCurrentUser(c, db) })
 				userAuth.POST("/me/avatar", func(c *gin.Context) { handlers.UploadAvatar(c, db) })
 				userAuth.DELETE("/me/avatar", func(c *gin.Context) { handlers.DeleteAvatar(c, db) })
+				// playlist covers for user's own playlists
+				userAuth.POST("/me/playlists/:playlist_id/cover", func(c *gin.Context) { handlers.UploadPlaylistCover(c, db) })
+				userAuth.DELETE("/me/playlists/:playlist_id/cover", func(c *gin.Context) { handlers.DeletePlaylistCover(c, db) })
 				userAuth.GET("/me/playlists", func(c *gin.Context) { handlers.GetMyPlaylists(c, db) })
 				userAuth.GET("/me/reviews", func(c *gin.Context) { handlers.GetMyReviews(c, db) })
 
