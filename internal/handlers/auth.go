@@ -148,6 +148,12 @@ func Login(c *gin.Context, db *gorm.DB) {
 	}
 
 	c.SetCookie("token", token, 3600*24, "/", "", false, true)
+//	c.SetCookie("token", token, 3600*24, "/", "", true, true)
+//	c.Writer.Header().Add("Set-Cookie", fmt.Sprintf(
+//    "token=%s; Path=/; Domain=.; Max-Age=%d; HttpOnly; SameSite=None",
+//    token, 3600*24,
+//))
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "login successful",
 		"token":   token,
