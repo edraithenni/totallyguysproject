@@ -13,7 +13,7 @@ import (
 	"time"
 	"totallyguysproject/internal/handlers"
 	"totallyguysproject/internal/ws"
-
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"gorm.io/gorm"
@@ -60,6 +60,12 @@ func StartNextDev() {
 func NewServer(db *gorm.DB) *Server {
 	r := gin.Default()
 	hub := ws.NewHub(db)
+	r.Use(cors.New(cors.Config{
+    AllowOrigins: []string{"http://localhost:3000"},
+    AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+    AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+    AllowCredentials: true,
+}))
 	ws.StartNotificationCleanup(db) //deletes checked notifications every hour
 	// web static (legacy static content)
 	legacyPath := filepath.Join("..", "..", "..", "totallyweb", "public", "legacy", "web")
