@@ -79,12 +79,26 @@ func GetPlaylist(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
+	//static covers for default playlists
+	var cover string
+	switch playlist.Name {
+	case "watched":
+		cover = "/src/watched-playlist.jpg"
+	case "watch-later":
+		cover = "/src/watch-later-playlist.jpg"
+	case "liked":
+		cover = "/src/liked-playlist.jpg"
+	default:
+		cover = playlist.Cover
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"id":         playlist.ID,
 		"name":       playlist.Name,
 		"ownerId":    playlist.OwnerID,
 		"movies":     movies,
 		"owner_name": owner.Name,
+		"cover":      cover,
 	})
 }
 
