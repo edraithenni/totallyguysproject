@@ -142,6 +142,7 @@ func NewServer(db *gorm.DB) *Server {
 		{
 			comments.PUT("/:id", func(c *gin.Context) { handlers.UpdateComment(c, db) })
 			comments.DELETE("/:id", func(c *gin.Context) { handlers.DeleteComment(c, db) })
+			comments.POST("/:id/vote", func(c *gin.Context) { handlers.VoteComment(c, db) })
 		}
 
 		// Authentiication

@@ -67,6 +67,13 @@ type Comment struct {
 	Value int `json:"value"`
 }
 
+type CommentVote struct {
+	gorm.Model
+	UserID    uint `gorm:"uniqueIndex:idx_user_comment"`
+	CommentID uint `gorm:"uniqueIndex:idx_user_comment"`
+	Value     int  // +1 upvote -1 downvote
+}
+
 type Follow struct {
 	gorm.Model
 	FollowerID uint `gorm:"uniqueIndex:idx_follower_followed"`

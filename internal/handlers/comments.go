@@ -210,4 +210,87 @@ func DeleteComment(c *gin.Context, db *gorm.DB) {
 }
 
 // POST /api/comments/:id/vote
-func VoteComment(c *gin.Context, db *gorm.DB) {}
+func VoteComment(c *gin.Context, db *gorm.DB) {
+	uid, ok := c.Get("userID")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	userID := uid.(uint)
+
+	cidStr := c.Param("id")
+	cid64, err := strconv.ParseUint(cidStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid comment id"})
+		return
+	}
+	commentID := uint(cid64)
+
+	var req struct {
+		Action string `json:"action"` // "up", "down", "remove"
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	var comment models.Comment
+	if err := db.First(&comment, commentID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "comment not found"})
+		return
+	}
+
+	var existing models.CommentVote
+	err = db.Where("user_id = ? AND comment_id = ?", userID, commentID).First(&existing).Error
+
+	switch req.Action {
+	case "up":
+		if err == gorm.ErrRecordNotFound {
+			db.Create(&models.CommentVote{UserID: userID, CommentID: commentID, Value: 1})
+			comment.Value++
+		} else if existing.Value == -1 {
+			existing.Value = 1
+			db.Save(&existing)
+			comment.Value += 2 
+		} else if existing.Value == 1 {
+			c.JSON(http.StatusOK, gin.H{"value": comment.Value})
+			return
+		}
+
+	case "down":
+		if err == gorm.ErrRecordNotFound {
+			db.Create(&models.CommentVote{UserID: userID, CommentID: commentID, Value: -1})
+			comment.Value--
+		} else if existing.Value == 1 {
+			existing.Value = -1
+			db.Save(&existing)
+			comment.Value -= 2 
+		} else if existing.Value == -1 {
+			c.JSON(http.StatusOK, gin.H{"value": comment.Value})
+			return
+		}
+
+	case "remove":
+		if err == nil {
+			// cancel vote
+			comment.Value -= existing.Value
+			db.Delete(&existing)
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "no vote to remove"})
+			return
+		}
+
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid action"})
+		return
+	}
+
+	if err := db.Save(&comment).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update comment value"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"value": comment.Value})
+}
+
+
