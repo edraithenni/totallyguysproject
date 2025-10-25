@@ -54,12 +54,12 @@ type Review struct {
 
 type Comment struct {
 	gorm.Model
-	ReviewID uint   `json:"review_id"`
-	UserID   uint   `json:"user_id"`
-	Content  string `json:"content"`
+	ReviewID uint   `json:"review_id" gorm:"not null"`
+	UserID   uint   `json:"user_id" gorm:"not null"`
+	Content  string `json:"content" gorm:"not null"`
 	//relations
-	User   User   `gorm:"foreignKey:UserID" json:"user,omitempty"`
-	Review Review `gorm:"foreignKey:ReviewID" json:"review,omitempty"`
+	User   User   `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE;" json:"user,omitempty"`
+	Review Review `gorm:"foreignKey:ReviewID;constraint:OnDelete:CASCADE;" json:"review,omitempty"`
 	//forum features
 	ParentID *uint      `json:"parent_id"` //nullable fk
 	Replies  []*Comment `gorm:"foreignKey:ParentID" json:"replies,omitempty"`
@@ -92,10 +92,9 @@ func (PlaylistMovie) TableName() string {
 
 type Notification struct {
 	gorm.Model
-    ID        uint      `gorm:"primaryKey"`
-    UserID    uint      
-    Type      string    // "follow", "review", ...
-    Data      string    
-    Read      bool      `gorm:"default:false"` //not used
+	ID     uint `gorm:"primaryKey"`
+	UserID uint
+	Type   string // "follow", "review", ...
+	Data   string
+	Read   bool `gorm:"default:false"` //not used
 }
-
