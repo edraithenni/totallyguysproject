@@ -31,3 +31,4 @@ The backend API endpoints are defined in the `server.go` file located in the `in
 
 # totallyweb
 place this repo on the same level as totallyguysproject
+may my soul rest in eternal peace
