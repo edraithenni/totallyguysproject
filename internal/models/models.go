@@ -70,7 +70,7 @@ type Comment struct {
 type CommentVote struct {
 	gorm.Model
 	UserID    uint `gorm:"uniqueIndex:idx_user_comment"`
-	CommentID uint `gorm:"uniqueIndex:idx_user_comment"`
+	CommentID uint `gorm:"uniqueIndex:idx_user_comment;constraint:OnDelete:CASCADE;"`
 	Value     int  // +1 upvote -1 downvote
 }
 

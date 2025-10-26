@@ -262,6 +262,19 @@ func DeleteReview(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
+	if err := db.Exec(`
+        DELETE FROM comment_votes 
+        WHERE comment_id IN (SELECT id FROM comments WHERE review_id = ?)
+    `, reviewID).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete comment votes"})
+        return
+    }
+	
+	if err := db.Where("review_id = ?", reviewID).Unscoped().Delete(&models.Comment{}).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete comments"})
+        return
+    }
+
 	if err := db.Unscoped().Delete(&review).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete review"})
 		return
