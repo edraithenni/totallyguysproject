@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"time"
 	"totallyguysproject/internal/handlers"
 	"totallyguysproject/internal/ws"
@@ -17,11 +16,25 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"gorm.io/gorm"
+	"strings"
+	"totallyguysproject/internal/utils"
 )
 
+
+// Upgrader with a conservative CheckOrigin that uses an allowlist.
+// extend the allowlist as needed for production.
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		return true
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			// No origin header (non-browser client) — allow, but the handler also requires auth.
+			return true
+		}
+		// Allowlist of trusted origins (adjust for production)
+		allowed := map[string]bool{
+			"http://localhost:3000": true,
+		}
+		return allowed[origin]
 	},
 }
 
@@ -82,20 +95,68 @@ func NewServer(db *gorm.DB) *Server {
 	})
 
 	// WebSocket endpoint
+		// WebSocket endpoint — now authenticates tokens before upgrading.
 	r.GET("/ws", func(c *gin.Context) {
-		uidStr := c.Query("user_id")
-		uid64, _ := strconv.ParseUint(uidStr, 10, 64)
-		userID := uint(uid64)
+		// 1) Extract token from cookie or Authorization header
+		token := ""
+		if cookie, err := c.Cookie("token"); err == nil && cookie != "" {
+			token = cookie
+		}
+		if token == "" {
+			authHeader := c.GetHeader("Authorization")
+			if authHeader != "" {
+				parts := strings.SplitN(authHeader, " ", 2)
+				if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
+					token = parts[1]
+				}
+			}
+		}
 
-		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
-		if err != nil {
+		if token == "" {
+			// Do not upgrade without credentials
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "no token provided"})
 			return
 		}
 
+		// 2) Validate JWT and extract user id
+		claims, err := utils.ParseJWT(token)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+			return
+		}
+		uidFloat, ok := claims["user_id"].(float64)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user id in token"})
+			return
+		}
+		userID := uint(uidFloat)
+
+		// 3) Optionally re-check Origin here (defense-in-depth)
+		origin := c.Request.Header.Get("Origin")
+		if origin != "" {
+			allowed := map[string]bool{
+				"http://localhost:3000": true,
+			}
+			if !allowed[origin] {
+				c.JSON(http.StatusForbidden, gin.H{"error": "origin not allowed"})
+				return
+			}
+		}
+
+		// 4) Perform websocket upgrade (we already authenticated)
+		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+		if err != nil {
+			// Upgrade failed; nothing to do
+			return
+		}
+
+		// 5) Register client as the authenticated user (do not trust query params)
 		hub.AddClient(userID, conn)
 
+		// 6) Flush pending DB notifications for this authenticated client
 		hub.SendPendingFromDB(userID, conn)
 
+		// 7) Read loop: keep the connection alive until client disconnects
 		go func() {
 			defer hub.RemoveClient(userID, conn)
 			for {

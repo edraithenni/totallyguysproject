@@ -678,6 +678,7 @@ func DeleteUser(c *gin.Context, db *gorm.DB) {
 	db.Unscoped().Where("user_id = ?", user.ID).Delete(&models.Review{})
 	db.Unscoped().Where("follower_id = ? OR followed_id = ?", user.ID, user.ID).Delete(&models.Follow{})
 	db.Unscoped().Where("user_id = ?", user.ID).Delete(&models.Comment{})
+	db.Unscoped().Where("user_id = ?", user.ID).Delete(&models.CommentVote{})
 
 	if err := db.Unscoped().Delete(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete user"})
