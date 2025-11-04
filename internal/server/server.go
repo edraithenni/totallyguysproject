@@ -18,8 +18,9 @@ import (
 	"gorm.io/gorm"
 	"strings"
 	"totallyguysproject/internal/utils"
+	//"github.com/joho/godotenv"
+	"totallyguysproject/internal/logger"
 )
-
 
 // Upgrader with a conservative CheckOrigin that uses an allowlist.
 // extend the allowlist as needed for production.
@@ -71,7 +72,11 @@ func StartNextDev() {
 }
 
 func NewServer(db *gorm.DB) *Server {
+	
+	logger.InitFileLogger()
+
 	r := gin.Default()
+	r.Use(logger.FileLoggerMiddleware())
 	hub := ws.NewHub(db)
 	r.Use(cors.New(cors.Config{
     AllowOrigins: []string{"http://localhost:3000"},

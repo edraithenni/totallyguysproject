@@ -25,3 +25,8 @@ Thumbs.db
 
 go.work
 go.work.sum
+
+
+logs/
+*.log
+log.txt
