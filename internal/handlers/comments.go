@@ -193,6 +193,7 @@ func DeleteComment(c *gin.Context, db *gorm.DB) {
 	if err := db.Where("parent_id = ?", comment.ID).First(&child).Error; err == nil {
 		// replies exist — replace content with "[deleted]"
 		comment.Content = "[deleted]"
+
 		if err := db.Save(&comment).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to mark deleted"})
 			return
@@ -206,7 +207,38 @@ func DeleteComment(c *gin.Context, db *gorm.DB) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete comment"})
 		return
 	}
+	CleanUpDeletedAncestors(c, db, comment.ParentID)
 	c.JSON(http.StatusOK, gin.H{"message": "comment deleted"})
+}
+
+func CleanUpDeletedAncestors(c *gin.Context, db *gorm.DB, parentID *uint) {
+	if parentID == nil {
+		return
+	}
+
+	var parent models.Comment
+	if err := db.First(&parent, *parentID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "parent comment not found"})
+		return
+	}
+
+	if parent.Content != "[deleted]" {
+		return
+	}
+	var count int64
+	if err := db.Model(&models.Comment{}).
+		Where("parent_id = ?", parent.ID).
+		Count(&count).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to count replies"})
+		return
+	}
+	if count == 0 {
+		if err := db.Delete(&parent).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete parent comment"})
+			return
+		}
+		CleanUpDeletedAncestors(c, db, parent.ParentID)
+	}
 }
 
 // POST /api/comments/:id/vote
@@ -251,7 +283,7 @@ func VoteComment(c *gin.Context, db *gorm.DB) {
 		} else if existing.Value == -1 {
 			existing.Value = 1
 			db.Save(&existing)
-			comment.Value += 2 
+			comment.Value += 2
 		} else if existing.Value == 1 {
 			c.JSON(http.StatusOK, gin.H{"value": comment.Value})
 			return
@@ -264,7 +296,7 @@ func VoteComment(c *gin.Context, db *gorm.DB) {
 		} else if existing.Value == 1 {
 			existing.Value = -1
 			db.Save(&existing)
-			comment.Value -= 2 
+			comment.Value -= 2
 		} else if existing.Value == -1 {
 			c.JSON(http.StatusOK, gin.H{"value": comment.Value})
 			return
@@ -292,5 +324,3 @@ func VoteComment(c *gin.Context, db *gorm.DB) {
 
 	c.JSON(http.StatusOK, gin.H{"value": comment.Value})
 }
-
-
