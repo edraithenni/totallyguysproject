@@ -75,7 +75,7 @@ func GetCommentsForReview(c *gin.Context, db *gorm.DB) {
 	reviewID := uint(rid64)
 
 	var comments []models.Comment
-	if err := db.Where("review_id = ?", reviewID).
+	if err := db.Unscoped().Where("review_id = ?", reviewID).
 		Order("created_at ASC").
 		Preload("User").
 		Find(&comments).Error; err != nil {
@@ -190,20 +190,30 @@ func DeleteComment(c *gin.Context, db *gorm.DB) {
 
 	// check for replies
 	var child models.Comment
-	if err := db.Where("parent_id = ?", comment.ID).First(&child).Error; err == nil {
-		// replies exist — replace content with "[deleted]"
-		comment.Content = "[deleted]"
+	if err := db.Unscoped().Where("parent_id = ?", comment.ID).First(&child).Error; err == nil {
+		tx := db.Begin()
 
-		if err := db.Save(&comment).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to mark deleted"})
+		tx.Exec("SET CONSTRAINTS ALL DEFERRED")
+
+		if err := tx.Exec("UPDATE comments SET deleted_at = NOW() WHERE id = ?", comment.ID).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete comment"})
 			return
 		}
+
+		if err := tx.Exec("UPDATE comments SET content = '[deleted]' WHERE id = ?", comment.ID).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to mark content"})
+			return
+		}
+
+		tx.Commit()
 		c.JSON(http.StatusOK, gin.H{"message": "comment marked deleted"})
 		return
 	}
 
 	// otherwise soft-delete
-	if err := db.Delete(&comment).Error; err != nil {
+	if err := db.Unscoped().Delete(&comment).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete comment"})
 		return
 	}
@@ -217,24 +227,23 @@ func CleanUpDeletedAncestors(c *gin.Context, db *gorm.DB, parentID *uint) {
 	}
 
 	var parent models.Comment
-	if err := db.First(&parent, *parentID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "parent comment not found"})
+	if err := db.Unscoped().First(&parent, *parentID).Error; err != nil {
 		return
 	}
 
 	if parent.Content != "[deleted]" {
 		return
 	}
+
 	var count int64
-	if err := db.Model(&models.Comment{}).
+	if err := db.Unscoped().Model(&models.Comment{}).
 		Where("parent_id = ?", parent.ID).
 		Count(&count).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to count replies"})
 		return
 	}
+
 	if count == 0 {
-		if err := db.Delete(&parent).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete parent comment"})
+		if err := db.Unscoped().Delete(&parent).Error; err != nil {
 			return
 		}
 		CleanUpDeletedAncestors(c, db, parent.ParentID)
