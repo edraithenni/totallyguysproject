@@ -289,33 +289,45 @@ func VoteComment(c *gin.Context, db *gorm.DB) {
 		if err == gorm.ErrRecordNotFound {
 			db.Create(&models.CommentVote{UserID: userID, CommentID: commentID, Value: 1})
 			comment.Value++
+			existing.Value = 1
 		} else if existing.Value == -1 {
 			existing.Value = 1
 			db.Save(&existing)
 			comment.Value += 2
+		} else if existing.Value == 0 {
+			existing.Value = 1
+			db.Save(&existing)
+			comment.Value++
 		} else if existing.Value == 1 {
-			c.JSON(http.StatusOK, gin.H{"value": comment.Value})
-			return
+			existing.Value = 0
+			db.Save(&existing)
+			comment.Value--
 		}
 
 	case "down":
 		if err == gorm.ErrRecordNotFound {
 			db.Create(&models.CommentVote{UserID: userID, CommentID: commentID, Value: -1})
 			comment.Value--
+			existing.Value = -1
 		} else if existing.Value == 1 {
 			existing.Value = -1
 			db.Save(&existing)
 			comment.Value -= 2
+		} else if existing.Value == 0 {
+			existing.Value = -1
+			db.Save(&existing)
+			comment.Value--
 		} else if existing.Value == -1 {
-			c.JSON(http.StatusOK, gin.H{"value": comment.Value})
-			return
+			existing.Value = 0
+			db.Save(&existing)
+			comment.Value++
 		}
 
 	case "remove":
-		if err == nil {
-			// cancel vote
+		if err == nil && existing.Value != 0 {
 			comment.Value -= existing.Value
-			db.Delete(&existing)
+			existing.Value = 0
+			db.Save(&existing)
 		} else {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "no vote to remove"})
 			return
@@ -331,5 +343,8 @@ func VoteComment(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"value": comment.Value})
+	c.JSON(http.StatusOK, gin.H{
+		"value":     comment.Value,
+		"user_vote": existing.Value,
+	})
 }
