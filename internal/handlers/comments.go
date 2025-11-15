@@ -65,7 +65,14 @@ func CreateComment(c *gin.Context, db *gorm.DB) {
 }
 
 // GET /api/reviews/:id/comments
+// GET /api/reviews/:id/comments
 func GetCommentsForReview(c *gin.Context, db *gorm.DB) {
+	uid, _ := c.Get("userID")
+	var userID uint
+	if uid != nil {
+		userID = uid.(uint)
+	}
+
 	reviewIDStr := c.Param("id")
 	rid64, err := strconv.ParseUint(reviewIDStr, 10, 64)
 	if err != nil {
@@ -74,8 +81,9 @@ func GetCommentsForReview(c *gin.Context, db *gorm.DB) {
 	}
 	reviewID := uint(rid64)
 
-	var comments []models.Comment
-	if err := db.Unscoped().Where("review_id = ?", reviewID).
+	var comments []*models.Comment
+	if err := db.Unscoped().
+		Where("review_id = ?", reviewID).
 		Order("created_at ASC").
 		Preload("User").
 		Find(&comments).Error; err != nil {
@@ -83,22 +91,69 @@ func GetCommentsForReview(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
+	var commentIDs []uint
+	var collectIDs func([]*models.Comment)
+	collectIDs = func(cs []*models.Comment) {
+		for _, c := range cs {
+			commentIDs = append(commentIDs, c.ID)
+			if len(c.Replies) > 0 {
+				collectIDs(c.Replies)
+			}
+		}
+	}
+	collectIDs(comments)
+
+	votesMap := make(map[uint]int) // commentID -> user_vote
+	if userID != 0 && len(commentIDs) > 0 {
+		var votes []models.CommentVote
+		if err := db.Where("user_id = ? AND comment_id IN ?", userID, commentIDs).Find(&votes).Error; err == nil {
+			for _, v := range votes {
+				votesMap[v.CommentID] = v.Value
+			}
+		}
+	}
+
+	var addUserVote func([]*models.Comment) []map[string]interface{}
+	addUserVote = func(cs []*models.Comment) []map[string]interface{} {
+		out := make([]map[string]interface{}, 0, len(cs))
+		for _, c := range cs {
+			commentMap := map[string]interface{}{
+				"ID":        c.ID,
+				"CreatedAt": c.CreatedAt,
+				"UpdatedAt": c.UpdatedAt,
+				"DeletedAt": c.DeletedAt,
+				"user_id":   c.UserID,
+				"user":      c.User,
+				"parent_id": c.ParentID,
+				"content":   c.Content,
+				"value":     c.Value,
+				"user_vote": votesMap[c.ID],
+			}
+			if len(c.Replies) > 0 {
+				commentMap["replies"] = addUserVote(c.Replies)
+			} else {
+				commentMap["replies"] = []interface{}{}
+			}
+			out = append(out, commentMap)
+		}
+		return out
+	}
+
 	tree := buildCommentTree(comments)
-	c.JSON(http.StatusOK, tree)
+	c.JSON(http.StatusOK, addUserVote(tree))
 }
 
 // recursively builds a hierarchical comment structure
 // by assigning replies to their parent comments based on ParentID.
-func buildCommentTree(all []models.Comment) []*models.Comment {
+func buildCommentTree(all []*models.Comment) []*models.Comment {
 	m := make(map[uint]*models.Comment, len(all))
-	for i := range all {
-		all[i].Replies = nil
-		m[all[i].ID] = &all[i]
+	for _, c := range all {
+		c.Replies = nil
+		m[c.ID] = c
 	}
 
 	var roots []*models.Comment
-	for i := range all {
-		c := &all[i]
+	for _, c := range all {
 		if c.ParentID != nil {
 			if parent, ok := m[*c.ParentID]; ok {
 				parent.Replies = append(parent.Replies, c)
