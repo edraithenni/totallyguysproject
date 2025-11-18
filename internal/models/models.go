@@ -7,7 +7,7 @@ type User struct {
 	Name             string     `json:"name"`
 	Email            string     `json:"email" gorm:"uniqueIndex"`
 	Password         string     `json:"password"`
-	Role             string     `json:"role"` // guest(no token)/user/admin 
+	Role             string     `json:"role"` // guest(no token)/user/admin
 	Verified         bool       `json:"verified"`
 	VerificationCode string     `json:"verification_code"`
 	Avatar           string     `json:"avatar"`
@@ -45,11 +45,12 @@ type Playlist struct {
 
 type Review struct {
 	gorm.Model
-	MovieID  uint      `json:"movie_id" gorm:"uniqueIndex:idx_user_movie"`
-	UserID   uint      `json:"user_id" gorm:"uniqueIndex:idx_user_movie"`
-	Content  string    `json:"content"`
-	Rating   int       `json:"rating"` // 1-10
-	Comments []Comment `gorm:"foreignKey:ReviewID"`
+	MovieID         uint      `json:"movie_id" gorm:"uniqueIndex:idx_user_movie"`
+	UserID          uint      `json:"user_id" gorm:"uniqueIndex:idx_user_movie"`
+	Content         string    `json:"content"`
+	Rating          int       `json:"rating"` // 1-10
+	ContainsSpoiler bool      `json:"contains_spoiler" gorm:"default:false"`
+	Comments        []Comment `gorm:"foreignKey:ReviewID"`
 }
 
 type Comment struct {
@@ -100,5 +101,5 @@ type Notification struct {
 }
 
 type BannedUser struct {
-    UserID   uint `gorm:"primaryKey"`
+	UserID uint `gorm:"primaryKey"`
 }

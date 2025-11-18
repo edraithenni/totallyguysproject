@@ -6,9 +6,10 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"totallyguysproject/internal/banned"
 	"totallyguysproject/internal/models"
 	"totallyguysproject/internal/ws"
-	"totallyguysproject/internal/banned"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -22,20 +23,22 @@ type ReviewWithMovie struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 
-	MovieTitle string `json:"movie_title"`
+	MovieTitle      string `json:"movie_title"`
+	ContainsSpoiler bool   `json:"contains_spoiler"`
 }
 
 type ReviewWithMovieAndUser struct {
-	ID         uint      `json:"id"`
-	MovieID    uint      `json:"movie_id"`
-	MovieTitle string    `json:"movie_title"`
-	UserID     uint      `json:"user_id"`
-	UserName   string    `json:"user_name"`
-	UserAvatar string    `json:"user_avatar"`
-	Content    string    `json:"content"`
-	Rating     int       `json:"rating"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID              uint      `json:"id"`
+	MovieID         uint      `json:"movie_id"`
+	MovieTitle      string    `json:"movie_title"`
+	UserID          uint      `json:"user_id"`
+	UserName        string    `json:"user_name"`
+	UserAvatar      string    `json:"user_avatar"`
+	Content         string    `json:"content"`
+	Rating          int       `json:"rating"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+	ContainsSpoiler bool      `json:"contains_spoiler"`
 }
 
 // POST /api/movies/:id/reviews
@@ -48,8 +51,8 @@ func CreateReview(c *gin.Context, db *gorm.DB, hub *ws.Hub) {
 	userID := uid.(uint)
 
 	if banned.IsBanned(userID) {
-    	c.JSON(http.StatusForbidden, gin.H{"error": "you are banned from posting"})
-    	return
+		c.JSON(http.StatusForbidden, gin.H{"error": "you are banned from posting"})
+		return
 	}
 
 	movieIDStr := c.Param("id")
@@ -67,8 +70,9 @@ func CreateReview(c *gin.Context, db *gorm.DB, hub *ws.Hub) {
 	}
 
 	var req struct {
-		Content string `json:"content"`
-		Rating  int    `json:"rating"`
+		Content         string `json:"content"`
+		Rating          int    `json:"rating"`
+		ContainsSpoiler bool   `json:"contains_spoiler"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil || req.Rating < 1 || req.Rating > 10 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
@@ -76,10 +80,11 @@ func CreateReview(c *gin.Context, db *gorm.DB, hub *ws.Hub) {
 	}
 
 	review := models.Review{
-		MovieID: movieID,
-		UserID:  userID,
-		Content: req.Content,
-		Rating:  req.Rating,
+		MovieID:         movieID,
+		UserID:          userID,
+		Content:         req.Content,
+		Rating:          req.Rating,
+		ContainsSpoiler: req.ContainsSpoiler,
 	}
 
 	if err := db.Create(&review).Error; err != nil {
@@ -130,10 +135,10 @@ func GetReviewsForMovie(c *gin.Context, db *gorm.DB) {
 	var reviews []ReviewWithMovieAndUser
 	if err := db.Table("reviews").
 		Select(`
-        	reviews.id, reviews.movie_id, movies.title AS movie_title,
-        	reviews.user_id, users.name AS user_name, users.avatar AS user_avatar,
-        	reviews.content, reviews.rating, reviews.created_at, reviews.updated_at
-    	`).
+			reviews.id, reviews.movie_id, movies.title AS movie_title,
+			reviews.user_id, users.name AS user_name, users.avatar AS user_avatar,
+			reviews.content, reviews.rating, reviews.created_at, reviews.updated_at, reviews.contains_spoiler
+		`).
 		Joins("LEFT JOIN movies ON movies.id = reviews.movie_id").
 		Joins("LEFT JOIN users ON users.id = reviews.user_id").
 		Where("reviews.movie_id = ?", movieID).
@@ -178,16 +183,17 @@ func GetReview(c *gin.Context, db *gorm.DB) {
 	db.Model(&models.Comment{}).Where("review_id = ?", reviewID).Count(&commentsCount)
 
 	c.JSON(http.StatusOK, gin.H{
-		"id":             review.ID,
-		"user_id":        review.UserID,
-		"user_name":      user.Name,
-		"user_avatar":    user.Avatar,
-		"movie_id":       review.MovieID,
-		"movie_title":    movie.Title,
-		"content":        review.Content,
-		"rating":         review.Rating,
-		"created_at":     review.CreatedAt,
-		"comments_count": commentsCount,
+		"id":               review.ID,
+		"user_id":          review.UserID,
+		"user_name":        user.Name,
+		"user_avatar":      user.Avatar,
+		"movie_id":         review.MovieID,
+		"movie_title":      movie.Title,
+		"content":          review.Content,
+		"rating":           review.Rating,
+		"contains_spoiler": review.ContainsSpoiler,
+		"created_at":       review.CreatedAt,
+		"comments_count":   commentsCount,
 	})
 }
 
@@ -220,8 +226,9 @@ func UpdateReview(c *gin.Context, db *gorm.DB) {
 	}
 
 	var req struct {
-		Content string `json:"content"`
-		Rating  int    `json:"rating"`
+		Content         string `json:"content"`
+		Rating          int    `json:"rating"`
+		ContainsSpoiler bool   `json:"contains_spoiler"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil || req.Rating < 1 || req.Rating > 10 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
@@ -230,6 +237,7 @@ func UpdateReview(c *gin.Context, db *gorm.DB) {
 
 	review.Content = req.Content
 	review.Rating = req.Rating
+	review.ContainsSpoiler = req.ContainsSpoiler
 
 	if err := db.Save(&review).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update review"})
@@ -271,14 +279,14 @@ func DeleteReview(c *gin.Context, db *gorm.DB) {
         DELETE FROM comment_votes 
         WHERE comment_id IN (SELECT id FROM comments WHERE review_id = ?)
     `, reviewID).Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete comment votes"})
-        return
-    }
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete comment votes"})
+		return
+	}
 
 	if err := db.Where("review_id = ?", reviewID).Unscoped().Delete(&models.Comment{}).Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete comments"})
-        return
-    }
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete comments"})
+		return
+	}
 
 	if err := db.Unscoped().Delete(&review).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete review"})
@@ -297,7 +305,7 @@ func GetReviewsByUser(c *gin.Context, db *gorm.DB) {
 		Select(`
         	reviews.id, reviews.movie_id, movies.title AS movie_title,
         	reviews.user_id, users.name AS user_name, users.avatar AS user_avatar,
-        	reviews.content, reviews.rating, reviews.created_at, reviews.updated_at
+        	reviews.content, reviews.rating, reviews.created_at, reviews.updated_at, reviews.contains_spoiler
     	`).
 		Joins("LEFT JOIN movies ON movies.id = reviews.movie_id").
 		Joins("LEFT JOIN users ON users.id = reviews.user_id").
@@ -324,7 +332,7 @@ func GetMyReviews(c *gin.Context, db *gorm.DB) {
 		Select(`
         	reviews.id, reviews.movie_id, movies.title AS movie_title,
         	reviews.user_id, users.name AS user_name, users.avatar AS user_avatar,
-        	reviews.content, reviews.rating, reviews.created_at, reviews.updated_at
+        	reviews.content, reviews.rating, reviews.created_at, reviews.updated_at, reviews.contains_spoiler
     	`).
 		Joins("LEFT JOIN movies ON movies.id = reviews.movie_id").
 		Joins("LEFT JOIN users ON users.id = reviews.user_id").
