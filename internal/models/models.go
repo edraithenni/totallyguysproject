@@ -7,7 +7,7 @@ type User struct {
 	Name             string     `json:"name"`
 	Email            string     `json:"email" gorm:"uniqueIndex"`
 	Password         string     `json:"password"`
-	Role             string     `json:"role"` // guest(no token)/user/admin (l8r)
+	Role             string     `json:"role"` // guest(no token)/user/admin 
 	Verified         bool       `json:"verified"`
 	VerificationCode string     `json:"verification_code"`
 	Avatar           string     `json:"avatar"`
@@ -97,4 +97,8 @@ type Notification struct {
 	Type   string // "follow", "review", ...
 	Data   string
 	Read   bool `gorm:"default:false"` //not used
+}
+
+type BannedUser struct {
+    UserID   uint `gorm:"primaryKey"`
 }

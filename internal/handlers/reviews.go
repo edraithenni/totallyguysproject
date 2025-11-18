@@ -8,7 +8,7 @@ import (
 	"time"
 	"totallyguysproject/internal/models"
 	"totallyguysproject/internal/ws"
-
+	"totallyguysproject/internal/banned"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -46,6 +46,11 @@ func CreateReview(c *gin.Context, db *gorm.DB, hub *ws.Hub) {
 		return
 	}
 	userID := uid.(uint)
+
+	if banned.IsBanned(userID) {
+    	c.JSON(http.StatusForbidden, gin.H{"error": "you are banned from posting"})
+    	return
+	}
 
 	movieIDStr := c.Param("id")
 	movieID64, err := strconv.ParseUint(movieIDStr, 10, 64)
@@ -269,7 +274,7 @@ func DeleteReview(c *gin.Context, db *gorm.DB) {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete comment votes"})
         return
     }
-	
+
 	if err := db.Where("review_id = ?", reviewID).Unscoped().Delete(&models.Comment{}).Error; err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete comments"})
         return

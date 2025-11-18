@@ -175,6 +175,25 @@ func NewServer(db *gorm.DB) *Server {
 	// API
 	api := r.Group("/api")
 	{
+		//admin endpoints
+		admin := r.Group("/api/admin")
+		admin.Use(handlers.AuthMiddleware(false), handlers.AdminRoleRequired())
+
+		admin.DELETE("/reviews/:id", func(c *gin.Context) {
+    		handlers.AdminDeleteReview(c, db, hub)
+		})
+		admin.DELETE("/comments/:id", func(c *gin.Context) {
+    		handlers.AdminDeleteComment(c, db, hub)
+		})
+		admin.POST("/users/:id/ban", func(c *gin.Context) {
+   			handlers.AdminBanUser(c, hub)
+		})
+
+		admin.POST("/users/:id/unban", func(c *gin.Context) {
+    		handlers.AdminUnbanUser(c, hub)
+		})
+
+
 		// Movies
 		movies := api.Group("/movies")
 		movies.Use(handlers.AuthMiddleware(false))

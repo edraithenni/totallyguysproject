@@ -7,6 +7,7 @@ package main
 
 import (
     "totallyguysproject/internal/server"
+    "totallyguysproject/internal/banned"
     //"totallyguysproject/internal/models"
 	"totallyguysproject/internal/database"
 	docs "totallyguysproject/docs"
@@ -17,6 +18,7 @@ import (
 
 func main() {
 	db := database.InitDB()
+    banned.Init(db)
 
 	go server.StartNextDev()
     

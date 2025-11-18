@@ -12,11 +12,12 @@ var errorloadingenv = godotenv.Load()
 var jwtSecret = []byte(os.Getenv("JWT_SECRET"))
 
 // GenerateJWT (userId+email) idk if its safe
-func GenerateJWT(userID uint, email string) (string, error) {
+func GenerateJWT(userID uint, email, role string) (string, error) {
 
 	payload := jwt.MapClaims{
 		"user_id": userID,
 		"email":   email,
+        "role":    role,
 		"exp":     time.Now().Add(time.Hour * 24).Unix(), // Expires in 24 hours
 	}
 

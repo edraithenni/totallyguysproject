@@ -141,7 +141,7 @@ func Login(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
-	token, err := utils.GenerateJWT(user.ID, user.Email)
+	token, err := utils.GenerateJWT(user.ID, user.Email, user.Role)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
 		return

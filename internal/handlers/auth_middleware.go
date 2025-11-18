@@ -61,7 +61,26 @@ func AuthMiddleware(optional bool) gin.HandlerFunc {
 		if email, ok := claims["email"].(string); ok {
 			c.Set("email", email)
 		}
+
+        if role, ok := claims["role"].(string); ok {
+            c.Set("role", role)
+        } else {
+            c.Set("role", "user") // default
+        }
         // Continue request processing
         c.Next()
     }
 }
+
+func AdminRoleRequired() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        role, exists := c.Get("role")
+        if !exists || role != "admin" {
+            c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
+            c.Abort()
+            return
+        }
+        c.Next()
+    }
+}
+

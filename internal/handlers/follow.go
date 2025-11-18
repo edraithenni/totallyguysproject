@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-
+	"totallyguysproject/internal/banned"
 	"totallyguysproject/internal/models"
 	"totallyguysproject/internal/ws"
 )
@@ -20,6 +20,11 @@ func FollowUser(c *gin.Context, db *gorm.DB, hub *ws.Hub) {
 		return
 	}
 	myID := uid.(uint)
+
+	if banned.IsBanned(myID) {
+    	c.JSON(http.StatusForbidden, gin.H{"error": "you are banned from posting"})
+    	return
+	}
 
 	targetID64, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {

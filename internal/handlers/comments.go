@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 	"totallyguysproject/internal/models"
-
+	"totallyguysproject/internal/banned"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -17,6 +17,11 @@ func CreateComment(c *gin.Context, db *gorm.DB) {
 		return
 	}
 	userID := uid.(uint)
+
+	if banned.IsBanned(userID) {
+    	c.JSON(http.StatusForbidden, gin.H{"error": "you are banned from posting"})
+    	return
+	}
 
 	reviewIDStr := c.Param("id")
 	rid64, err := strconv.ParseUint(reviewIDStr, 10, 64)
@@ -313,6 +318,11 @@ func VoteComment(c *gin.Context, db *gorm.DB) {
 		return
 	}
 	userID := uid.(uint)
+
+	if banned.IsBanned(userID) {
+    	c.JSON(http.StatusForbidden, gin.H{"error": "you are banned from posting"})
+    	return
+	}
 
 	cidStr := c.Param("id")
 	cid64, err := strconv.ParseUint(cidStr, 10, 64)
