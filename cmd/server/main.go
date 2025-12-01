@@ -20,7 +20,7 @@ func main() {
 	db := database.InitDB()
     banned.Init(db)
 
-	go server.StartNextDev()
+	//go server.StartNextDev()
     
     srv := server.NewServer(db)
 	//docs.SwaggerInfo.BasePath = "/api/v1"
