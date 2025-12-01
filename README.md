@@ -82,8 +82,5 @@ services:
 volumes:
   pgdata:
 ```
-<<<<<<< HEAD
+
 Fill POSTGRES_USER, POSTGRES_DB, POSTGRES_PASSWORD, JWT_SECRET, OMDB_API with values for your machine.
-=======
-Fill POSTGRES_USER, POSTGRES_DB, POSTGRES_PASSWORD, JWT_SECRET, OMDB_API with values for your machine.
->>>>>>> 7b623be9abcf6a60a04c846604b2c9685ebaefae
