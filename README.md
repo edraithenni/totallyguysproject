@@ -31,4 +31,55 @@ The backend API endpoints are defined in the `server.go` file located in the `in
 
 # totallyweb
 place this repo on the same level as totallyguysproject
-may my soul rest in eternal peace
+
+
+## 6. Docker Compose — local development (example)
+place file docker-compose.yml to root directory for both frontend and backend repos (one level higher)
+```yaml
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}  
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./totallyguysproject
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=${DB_SSLMODE:-disable}
+      OMDB_API: ${OMDB_API}
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./totallyweb
+      dockerfile: Dockerfile
+    environment:
+      API_URL: http://backend:8080/api
+      WATCHPACK_POLLING: "true"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./totallyweb:/app 
+
+volumes:
+  pgdata:
+```
+Fill POSTGRES_USER, POSTGRES_DB, POSTGRES_PASSWORD, JWT_SECRET, OMDB_API with values for your machine.
