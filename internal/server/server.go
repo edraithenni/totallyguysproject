@@ -22,16 +22,12 @@ import (
 	"totallyguysproject/internal/logger"
 )
 
-// Upgrader with a conservative CheckOrigin that uses an allowlist.
-// extend the allowlist as needed for production.
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		origin := r.Header.Get("Origin")
 		if origin == "" {
-			// No origin header (non-browser client) — allow, but the handler also requires auth.
 			return true
 		}
-		// Allowlist of trusted origins (adjust for production)
 		allowed := map[string]bool{
 			"http://localhost:3000": true,
 		}
@@ -41,34 +37,6 @@ var upgrader = websocket.Upgrader{
 
 type Server struct {
 	Router *gin.Engine
-}
-
-func StartNextDev() {
-	log.Println("Starting Next.js dev server...")
-
-	cmd := exec.Command("npm", "run", "dev")
-	cmd.Dir = "../../../totallyweb"
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Env = os.Environ()
-
-	if err := cmd.Start(); err != nil {
-		log.Println("Failed to start Next.js dev server:", err)
-		return
-	}
-
-	deadline := time.Now().Add(15 * time.Second)
-	for time.Now().Before(deadline) {
-		conn, err := net.DialTimeout("tcp", "127.0.0.1:3000", 500*time.Millisecond)
-		if err == nil {
-			conn.Close()
-			log.Println("Next.js is up at http://localhost:3000")
-			return
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-
-	log.Println("Timeout: Next.js didn't start on port 3000.")
 }
 
 func NewServer(db *gorm.DB) *Server {
@@ -102,7 +70,6 @@ func NewServer(db *gorm.DB) *Server {
 	// WebSocket endpoint
 		// WebSocket endpoint — now authenticates tokens before upgrading.
 	r.GET("/ws", func(c *gin.Context) {
-		// 1) Extract token from cookie or Authorization header
 		token := ""
 		if cookie, err := c.Cookie("token"); err == nil && cookie != "" {
 			token = cookie
@@ -118,12 +85,10 @@ func NewServer(db *gorm.DB) *Server {
 		}
 
 		if token == "" {
-			// Do not upgrade without credentials
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "no token provided"})
 			return
 		}
 
-		// 2) Validate JWT and extract user id
 		claims, err := utils.ParseJWT(token)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
@@ -136,7 +101,6 @@ func NewServer(db *gorm.DB) *Server {
 		}
 		userID := uint(uidFloat)
 
-		// 3) Optionally re-check Origin here (defense-in-depth)
 		origin := c.Request.Header.Get("Origin")
 		if origin != "" {
 			allowed := map[string]bool{
@@ -148,20 +112,15 @@ func NewServer(db *gorm.DB) *Server {
 			}
 		}
 
-		// 4) Perform websocket upgrade (we already authenticated)
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
-			// Upgrade failed; nothing to do
 			return
 		}
 
-		// 5) Register client as the authenticated user (do not trust query params)
 		hub.AddClient(userID, conn)
 
-		// 6) Flush pending DB notifications for this authenticated client
 		hub.SendPendingFromDB(userID, conn)
 
-		// 7) Read loop: keep the connection alive until client disconnects
 		go func() {
 			defer hub.RemoveClient(userID, conn)
 			for {
