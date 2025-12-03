@@ -9,6 +9,7 @@ RUN go build -o server ./cmd/server
 FROM alpine:latest
 WORKDIR /app
 COPY --from=builder /app/server .
+COPY --from=builder /app/data ./data
 EXPOSE 8080
 ENV GIN_MODE=release
 CMD ["./server"]

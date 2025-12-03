@@ -301,7 +301,7 @@ func LoadMoviesByGenre(c *gin.Context, db *gorm.DB) {
     offset := (page - 1) * limit
 
     // CSV 
-    filePath := fmt.Sprintf("../../data/%s.csv", strings.ToLower(genre))
+    filePath := fmt.Sprintf("data/%s.csv", strings.ToLower(genre))
     f, err := os.Open(filePath)
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "genre CSV not found"})
