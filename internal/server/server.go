@@ -1,15 +1,10 @@
 package server
 
 import (
-	"log"
-	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"os"
-	"os/exec"
 	"path/filepath"
-	"time"
 	"totallyguysproject/internal/handlers"
 	"totallyguysproject/internal/ws"
 	"github.com/gin-contrib/cors"
