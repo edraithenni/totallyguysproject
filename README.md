@@ -64,6 +64,7 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=${DB_SSLMODE:-disable}
       OMDB_API: ${OMDB_API}
       JWT_SECRET: ${JWT_SECRET}
+      APP_PASSWORD: ${APP_PASSWORD}
     ports:
       - "8080:8080"
 
