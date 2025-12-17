@@ -5,14 +5,16 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"path/filepath"
+	"strings"
 	"totallyguysproject/internal/handlers"
+	"totallyguysproject/internal/utils"
 	"totallyguysproject/internal/ws"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"gorm.io/gorm"
-	"strings"
-	"totallyguysproject/internal/utils"
+
 	//"github.com/joho/godotenv"
 	"totallyguysproject/internal/logger"
 )
@@ -35,18 +37,18 @@ type Server struct {
 }
 
 func NewServer(db *gorm.DB) *Server {
-	
+
 	logger.InitFileLogger()
 
 	r := gin.Default()
 	r.Use(logger.FileLoggerMiddleware())
 	hub := ws.NewHub(db)
 	r.Use(cors.New(cors.Config{
-    AllowOrigins: []string{"http://localhost:3000"},
-    AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-    AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-    AllowCredentials: true,
-}))
+		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowCredentials: true,
+	}))
 	ws.StartNotificationCleanup(db) //deletes checked notifications every hour
 	// web static (legacy static content)
 	legacyPath := filepath.Join("..", "..", "..", "totallyweb", "public", "legacy", "web")
@@ -63,7 +65,7 @@ func NewServer(db *gorm.DB) *Server {
 	})
 
 	// WebSocket endpoint
-		// WebSocket endpoint — now authenticates tokens before upgrading.
+	// WebSocket endpoint — now authenticates tokens before upgrading.
 	r.GET("/ws", func(c *gin.Context) {
 		token := ""
 		if cookie, err := c.Cookie("token"); err == nil && cookie != "" {
@@ -132,21 +134,23 @@ func NewServer(db *gorm.DB) *Server {
 		//admin endpoints
 		admin := r.Group("/api/admin")
 		admin.Use(handlers.AuthMiddleware(false), handlers.AdminRoleRequired())
+		admin.GET("/users/:id/banned", func(c *gin.Context) {
+			handlers.AdminGetUserBanStatus(c, db)
+		})
 
 		admin.DELETE("/reviews/:id", func(c *gin.Context) {
-    		handlers.AdminDeleteReview(c, db, hub)
+			handlers.AdminDeleteReview(c, db, hub)
 		})
 		admin.DELETE("/comments/:id", func(c *gin.Context) {
-    		handlers.AdminDeleteComment(c, db, hub)
+			handlers.AdminDeleteComment(c, db, hub)
 		})
 		admin.POST("/users/:id/ban", func(c *gin.Context) {
-   			handlers.AdminBanUser(c, hub)
+			handlers.AdminBanUser(c, hub)
 		})
 
 		admin.POST("/users/:id/unban", func(c *gin.Context) {
-    		handlers.AdminUnbanUser(c, hub)
+			handlers.AdminUnbanUser(c, hub)
 		})
-
 
 		// Movies
 		movies := api.Group("/movies")
