@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm"
 )
 
+
 // POST /api/auth/register
 func Register(c *gin.Context, db *gorm.DB) {
 	var req struct {
@@ -95,6 +96,13 @@ func Register(c *gin.Context, db *gorm.DB) {
 	}
 	// verification through fmt, l8r with email
 	fmt.Printf("Verification code for %s: %s\n", user.Email, code)
+	if err := utils.SendEmail(user.Email, "Verification code", "Your code: "+code); err != nil {
+    	fmt.Println("EMAIL ERROR:", err)
+	} else {
+    	fmt.Println("EMAIL SENT OK")
+	}
+
+
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "registered successfully, check console for verification code",
