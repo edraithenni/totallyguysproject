@@ -18,6 +18,23 @@ import (
 	"totallyguysproject/internal/logger"
 )
 
+func LanguageMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		lang, err := c.Cookie("lang")
+		if err != nil {
+			lang = c.GetHeader("Accept-Language")
+			if lang == "" {
+				lang = "en"
+			}
+		}
+		if len(lang) > 2 {
+			lang = lang[:2]
+		}
+		c.Set("language", lang)
+		c.Next()
+	}
+}
+
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		origin := r.Header.Get("Origin")
@@ -41,11 +58,12 @@ func NewServer(db *gorm.DB) *Server {
 
 	r := gin.Default()
 	r.Use(logger.FileLoggerMiddleware())
+	r.Use(LanguageMiddleware())
 	hub := ws.NewHub(db)
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Accept-Language"},
 		AllowCredentials: true,
 	}))
 	ws.StartNotificationCleanup(db) //deletes checked notifications every hour
