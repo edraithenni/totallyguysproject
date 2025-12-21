@@ -154,7 +154,7 @@ func GetCurrentUser(c *gin.Context, db *gorm.DB) {
 		"avatar":      user.Avatar,
 		"description": user.Description,
 		"collections": collections,
-		//"friends":     friends,
+		//"friends":      friends,
 		"following": followingIDs,
 		"followers": followerIDs,
 		"reviews":   reviews,
@@ -339,7 +339,8 @@ func deleteAvatarFile(avatarURL string) error {
 		return nil
 	}
 
-	filePath := "../../../totallyweb/public" + avatarURL
+	// ИСПРАВЛЕН ПУТЬ: вместо ../../../ используется абсолютный путь в контейнере
+	filePath := "/app" + avatarURL
 
 	fmt.Printf("Deleting: %s\n", filePath)
 
@@ -349,6 +350,7 @@ func deleteAvatarFile(avatarURL string) error {
 
 	return os.Remove(filePath)
 }
+
 func UploadAvatar(c *gin.Context, db *gorm.DB) {
 	userID, ok := c.Get("userID")
 	if !ok {
@@ -363,7 +365,8 @@ func UploadAvatar(c *gin.Context, db *gorm.DB) {
 	}
 
 	// create an individual user directory
-	basePath := "../../../totallyweb/public/uploads/avatars"
+	// ИСПРАВЛЕН ПУТЬ: /app/uploads/avatars
+	basePath := "/app/uploads/avatars"
 	userFolder := fmt.Sprintf("%s/%v", basePath, userID)
 
 	if err := os.MkdirAll(userFolder, 0755); err != nil {
@@ -486,7 +489,8 @@ func UploadPlaylistCover(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
-	basePath := "../../../totallyweb/public/uploads/playlists"
+	// ИСПРАВЛЕН ПУТЬ: /app/uploads/playlists
+	basePath := "/app/uploads/playlists"
 	userFolder := fmt.Sprintf("%s/%v", basePath, userID)
 
 	if err := os.MkdirAll(userFolder, 0755); err != nil {
@@ -513,7 +517,8 @@ func UploadPlaylistCover(c *gin.Context, db *gorm.DB) {
 
 	if oldCover != "" {
 		go func(url string) {
-			filePath := "../../../totallyweb/public" + url
+			// ИСПРАВЛЕН ПУТЬ: /app
+			filePath := "/app" + url
 			if _, err := os.Stat(filePath); os.IsNotExist(err) {
 				return
 			}
@@ -580,7 +585,8 @@ func DeletePlaylistCover(c *gin.Context, db *gorm.DB) {
 	}
 
 	if oldCover != "" {
-		filePath := "../../../totallyweb/public" + oldCover
+		// ИСПРАВЛЕН ПУТЬ: /app
+		filePath := "/app" + oldCover
 		if _, err := os.Stat(filePath); !os.IsNotExist(err) {
 			if err := os.Remove(filePath); err != nil {
 				fmt.Printf("Failed to delete playlist cover file: %v\n", err)

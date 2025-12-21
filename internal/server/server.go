@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"totallyguysproject/internal/handlers"
 	"totallyguysproject/internal/utils"
@@ -51,10 +50,8 @@ func NewServer(db *gorm.DB) *Server {
 	}))
 	ws.StartNotificationCleanup(db) //deletes checked notifications every hour
 	// web static (legacy static content)
-	legacyPath := filepath.Join("..", "..", "..", "totallyweb", "public", "legacy", "web")
-	r.Static("/legacy", legacyPath)
-
-	r.Static("/uploads", filepath.Join("..", "..", "..", "totallyweb", "public", "uploads"))
+	r.Static("/legacy", "./public/legacy/web")
+	r.Static("/uploads", "/app/uploads")
 
 	// next js host
 	nextURL, _ := url.Parse("http://localhost:3000")
