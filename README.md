@@ -75,13 +75,17 @@ services:
     environment:
       API_URL: http://backend:8080/api
       WATCHPACK_POLLING: "true"
+      NEXT_PUBLIC_UPLOAD_URL: http://localhost:8080/uploads
     ports:
       - "3000:3000"
     volumes:
-      - ./totallyweb:/app 
+      - ./totallyweb:/app
+      -uploads_volume:/app/public/uploads
+
 
 volumes:
   pgdata:
+  uploads_volume:
 ```
 
 Fill POSTGRES_USER, POSTGRES_DB, POSTGRES_PASSWORD, JWT_SECRET, OMDB_API with values for your machine.
