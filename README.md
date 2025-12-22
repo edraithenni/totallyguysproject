@@ -80,7 +80,7 @@ services:
       - "3000:3000"
     volumes:
       - ./totallyweb:/app
-      -uploads_volume:/app/public/uploads
+      - uploads_volume:/app/public/uploads
 
 
 volumes:
